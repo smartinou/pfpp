@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model version="5.2.5" links="0">
+ <framework name="qpcpp"/>
+ <package file="./rtcc.qmp"/>
+</model>
