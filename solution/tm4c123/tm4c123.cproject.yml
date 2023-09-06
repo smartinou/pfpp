@@ -1,0 +1,31 @@
+project:
+  device: Texas Instruments::TM4C123GH6PM
+  components:
+    - component: ARM::CMSIS:CORE
+    - component: Keil::Device:Startup
+    #- component: ARM::Device:Startup
+    #- component: ARM::CMSIS Driver:USART
+    #- component: ARM::CMSIS Driver:SPI:Custom
+
+    - component: Quantum-Leaps::Utility&QP/C++:QEP
+    - component: Quantum-Leaps::Utility&QP/C++:QF
+    #- component: Quantum-Leaps::Utility&QP/C++:QS
+    #- component: Quantum-Leaps::Utility&QP/C++:QUTest
+    - component: Quantum-Leaps::Utility&QP/C++:Ports:Native&QV
+
+  add-path:
+    - "../../firmware"
+
+  define:
+    #- TM4C123GH6PM
+    - TARGET_IS_TM4C123_RB1
+
+  linker:
+    - script: ./tm4c123.ld
+
+  groups:
+    - group: Main application
+      files:
+        - file: main.cpp
+        - file: startup_TM4C123GH6PM.c
+        - file: ../../firmware/qp_ao/codegen/PFPP_AOs.cpp

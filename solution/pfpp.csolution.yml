@@ -1,0 +1,68 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/schemas/projmgr/2.0.0-dev1/tools/projmgr/schemas/csolution.schema.json
+
+solution:
+  description: "Pet Feeder Pet Project CMSIS solution file."
+  created-for: CMSIS-Toolbox@2.0.0
+  compiler: GCC
+
+  packs:
+    - pack: ARM::CMSIS
+    - pack: ARM::CMSIS-Driver
+    - pack: Keil::TM4C_DFP
+    - pack: Quantum-Leaps::CMSIS-QPCPP
+    - pack: ARM::CMSIS-FreeRTOS
+    - pack: SEGGER::CMSIS-embOS
+    - pack: lwIP::lwIP
+
+  build-types:
+    - type: Debug
+      debug: on
+      optimize: none
+      warnings: "on"
+      define:
+        - DEBUG_TEST
+    - type: Release
+      debug: off
+      optimize: speed
+      warnings: "on"
+
+  define:
+    - __ARM_ARCH_7EM__
+
+  language-C: c11
+  language-CPP: c++20
+  
+
+  target-types:
+    -
+      type: DevBoard
+      #board: ek-tm4c129exl
+      misc:
+        - C:
+          - -Wall -Wextra 
+          #- -Werror
+          - -Wpedantic
+          #- -Wconversion
+          - -mfloat-abi=softfp
+          - -ffunction-sections -fdata-sections
+        - CPP:
+          - -std=c++20
+          - -fno-rtti -fno-exceptions
+          - -Wall -Wextra 
+          #- -Werror
+          - -Wpedantic
+          #- -Wconversion
+          - -mfloat-abi=softfp
+          - -ffunction-sections -fdata-sections
+        - Link:
+          - -mfloat-abi=softfp
+          - -specs=nosys.specs -specs=nano.specs
+          - -Wl,-Map,out.map,--cref,--gc-sections
+
+  output-dirs:
+    intdir: $SolutionDir()$/$Project$/tmp/$TargetType$/$BuildType$
+    outdir: $SolutionDir()$/$Project$/out/$TargetType$/$BuildType$
+
+  projects:
+    - project: ./tm4c129/tm4c129.cproject.yml
+    - project: ./tm4c123/tm4c123.cproject.yml
