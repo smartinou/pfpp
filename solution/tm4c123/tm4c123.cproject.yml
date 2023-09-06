@@ -3,9 +3,6 @@ project:
   components:
     - component: ARM::CMSIS:CORE
     - component: Keil::Device:Startup
-    #- component: ARM::Device:Startup
-    #- component: ARM::CMSIS Driver:USART
-    #- component: ARM::CMSIS Driver:SPI:Custom
 
     - component: Quantum-Leaps::Utility&QP/C++:QEP
     - component: Quantum-Leaps::Utility&QP/C++:QF
@@ -17,7 +14,6 @@ project:
     - "../../firmware"
 
   define:
-    #- TM4C123GH6PM
     - TARGET_IS_TM4C123_RB1
 
   linker:
