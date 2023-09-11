@@ -22,6 +22,7 @@
 // *****************************************************************************
 //                              INCLUDE FILES
 // *****************************************************************************
+#include <qpcpp.hpp>
 
 // Standard Libraries.
 #include <array>
@@ -67,12 +68,12 @@ class DummyMotorControl final
     // IMotorControl interface.
     void TurnOnCW([[maybe_unused]] unsigned int aDutyCycle = 100) const
     {
-        GPIOF->RESERVED[LED_GREEN] = 0U;
+        GPIOF->RESERVED[LED_RED] = 0xFFU;
     }
     void TurnOnCCW([[maybe_unused]] unsigned int aDutyCycle = 100) const { /* Do nothing. */}
     void TurnOff() const
     {
-        GPIOF->RESERVED[LED_GREEN] = 0xFFU;
+        GPIOF->RESERVED[LED_RED] = 0U;
     }
 };
 
@@ -87,10 +88,11 @@ static void DebounceSwitches();
 //                             GLOBAL VARIABLES
 // *****************************************************************************
 
+static constexpr auto sBSPTicksPerSecond {100};
+
 // *****************************************************************************
 //                            EXPORTED FUNCTIONS
 // *****************************************************************************
-
 int main()
 {
     Init();
@@ -99,7 +101,7 @@ int main()
     QP::QF::init();
 
     // Initialize event pool.
-    static QF_MPOOL_EL(PFPP::Event::Mgr::Init) sSmallPoolSto[20] {};
+    static QF_MPOOL_EL(PFPP::Event::Feeder::ManualFeedCmd) sSmallPoolSto[20] {};
     QP::QF::poolInit(
         sSmallPoolSto,
         sizeof(sSmallPoolSto),
@@ -114,9 +116,6 @@ int main()
     QS_OBJ_DICTIONARY(sSmallPoolSto);
     QS_FUN_DICTIONARY(&QP::QHsm::top);
 
-    static constexpr FeedCfg lFeedCfg {};
-
-    static constexpr auto sBSPTicksPerSecond {100};
     using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
     auto lToTicksFct {
         [](const auto aDuration)
@@ -126,18 +125,19 @@ int main()
     };
 
     static QP::QEvt const *lEventQSto[10]; // Event queue storage for Blinky
-    PFPP::AO::Mgr_AO lPFPPAO(
+    PFPP::AO::Mgr lPFPPAO(
         std::make_unique<DummyMotorControl>(),
-        lFeedCfg,
         lToTicksFct
     );
+#if 1
 
     lPFPPAO.start(
         1U,       // QF-priority/preemption-threshold
-        lEventQSto, Q_DIM(lEventQSto), // event queue
+        lEventQSto,
+        Q_DIM(lEventQSto), // event queue
         nullptr, 0U                // stack (unused)
     );
-
+#endif
     return QP::QF::run();
 }
 
@@ -165,7 +165,13 @@ static void Init()
     GPIOF->RESERVED[LED_GREEN] = 0U;  // turn the LED off
     GPIOF->RESERVED[LED_BLUE]  = 0U;  // turn the LED off
 
-    // configure the Buttons
+    // configure the Buttons:
+    // PF0 can be used as NMI, and requires unlocking Commit Register (CR)
+    // before any write to PUR, PDR, PAFSEL, PDEN.
+    GPIOF->LOCK = 0x4c4f434b;
+    GPIOF->CR |= BTN_SW2;
+    //GPIOF->PDEN |= BTN_SW2;
+
     GPIOF->DIR &= ~(BTN_SW1 | BTN_SW2); //  set direction: input
     ROM_GPIOPadConfigSet(
         GPIOF_BASE,
@@ -179,6 +185,22 @@ static void Init()
 // QF callbacks ==============================================================
 void QP::QF::onStartup()
 {
+    // set up the SysTick timer to fire at BSP_TICKS_PER_SEC rate
+    SysTick_Config(SystemCoreClock / sBSPTicksPerSecond);
+
+    // assing all priority bits for preemption-prio. and none to sub-prio.
+    NVIC_SetPriorityGrouping(0U);
+
+    // set priorities of ALL ISRs used in the system, see NOTE00
+    //
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!! CAUTION !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // Assign a priority to EVERY ISR explicitly by calling NVIC_SetPriority().
+    // DO NOT LEAVE THE ISR PRIORITIES AT THE DEFAULT VALUE!
+    //
+    NVIC_SetPriority(SysTick_IRQn,   QF_AWARE_ISR_CMSIS_PRI);
+    // ...
+
+    // enable IRQs...
 }
 
 
@@ -192,8 +214,8 @@ void QP::QV::onIdle()
 { // CAUTION: called with interrupts DISABLED, NOTE01
 
     // toggle LED2 on and then off, see NOTE01
-    GPIOF->RESERVED[LED_BLUE] = 0xFFU;
-    GPIOF->RESERVED[LED_BLUE] = 0x00U;
+    GPIOF->RESERVED[LED_GREEN] = 0xFFU;
+    GPIOF->RESERVED[LED_GREEN] = 0x00U;
 
 #ifdef NDEBUG
     // Put the CPU and peripherals to the low-power mode.
@@ -232,7 +254,7 @@ void SysTick_Handler(void)
 #endif
 
     //QTimeEvt::TICK_X(0U, nullptr); // process time events for rate 0
-        // Call QF Tick function.
+    // Call QF Tick function.
     QP::QF::TICK_X(0U, nullptr);
 
     // Perform the debouncing of buttons. The algorithm for debouncing
@@ -253,7 +275,7 @@ static void DebounceSwitches()
     static std::array<PinType, sStateDepth> sPinsState {0};
     static PinType sPreviousDebounce {0};
     static decltype(sPinsState.size()) lStateIx {0};
-    sPinsState.at(lStateIx) = ~GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
+    sPinsState.at(lStateIx) = ~ROM_GPIOPinRead(GPIOF_BASE, BTN_SW1 | BTN_SW2);//~GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
     ++lStateIx;
     if (lStateIx >= sPinsState.size()) {
         lStateIx = 0;
@@ -273,24 +295,23 @@ static void DebounceSwitches()
     static QP::QSpyId const sSysTick_Handler{0U};
 #endif // Q_SPY
     // What changed now? Look for pressed states.
-    if ((!sPreviousDebounce) & lCurrentDebounce) {
+    if ((~sPreviousDebounce) & lCurrentDebounce) {
 
         if (lCurrentDebounce & BTN_SW1) {
-            static const PFPP::Event::Mgr::ManualFeedCmd sOnEvt {FEED_MGR_MANUAL_FEED_CMD_SIG, 0U, 0U, true};
+            static const PFPP::Event::Mgr::ButtonEvt sOnEvt {MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
         if (lCurrentDebounce & BTN_SW2) {
-            // FireTimedFeedEvt: either custom here, or from PFPP::AO::Mgr::FireTimedFeedEvt().
-            static const PFPP::Event::Mgr::TimedFeedCmd sOnEvent {FEED_MGR_TIMED_FEED_CMD_SIG, 0U, 0U};
-            QP::QF::PUBLISH(&sOnEvent, &sSysTick_Handler);
+            static const PFPP::Event::Mgr::ButtonEvt sOnEvt {TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
     }
 
     // Look for released states.
-    if (sPreviousDebounce & !lCurrentDebounce) {
-        if ((!lCurrentDebounce) & BTN_SW1) {
-            static const PFPP::Event::Mgr::ManualFeedCmd sEvt {FEED_MGR_MANUAL_FEED_CMD_SIG, 0U, 0U, false};
-            QP::QF::PUBLISH(&sEvt, &sSysTick_Handler);
+    if (sPreviousDebounce & ~lCurrentDebounce) {
+        if ((sPreviousDebounce) & BTN_SW1) {
+            static const PFPP::Event::Mgr::ButtonEvt sOffEvt {MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
+            QP::QF::PUBLISH(&sOffEvt, &sSysTick_Handler);
         }
     }
 
