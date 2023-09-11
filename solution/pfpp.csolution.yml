@@ -43,19 +43,25 @@ solution:
           #- -Werror
           - -Wpedantic
           #- -Wconversion
-          - -mfloat-abi=softfp
+          - -mfloat-abi=hard
+          - -mfpu=auto
+          - -mthumb
           - -ffunction-sections -fdata-sections
         - CPP:
-          - -std=c++20
+          #- -std=c++20
           - -fno-rtti -fno-exceptions
           - -Wall -Wextra 
           #- -Werror
           - -Wpedantic
           #- -Wconversion
-          - -mfloat-abi=softfp
+          - -mfloat-abi=hard
+          - -mfpu=auto
+          - -mthumb
           - -ffunction-sections -fdata-sections
         - Link:
-          - -mfloat-abi=softfp
+          - -mfloat-abi=hard
+          - -mfpu=auto
+          - -mthumb
           - -specs=nosys.specs -specs=nano.specs
           - -Wl,-Map,out.map,--cref,--gc-sections
 
