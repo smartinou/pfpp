@@ -146,15 +146,14 @@ StartTimedFeed(lEvent-&gt;mFeedPeriod);</action>
        </tran_glyph>
       </tran>
       <tran trig="TERMINATE">
-       <action brief="Stop();">// Requires QF_ACTIVE_STOP to be defined.
-QP::QF::stop();</action>
+       <action brief="Stop();"/>
        <tran_glyph conn="72,12,0,-1,-6,8">
         <action box="0,-6,10,4"/>
        </tran_glyph>
       </tran>
       <state name="Waiting">
        <documentation>// Waiting here for anything to happen.</documentation>
-       <entry brief="recall();">mOwner-&gt;recall(&amp;mDeferredEventQueue);</entry>
+       <entry brief="Recall();">mOwner-&gt;recall(&amp;mDeferredEventQueue);</entry>
        <state_glyph node="32,24,48,8">
         <entry box="1,2,13,2"/>
        </state_glyph>
@@ -168,10 +167,10 @@ QP::QF::stop();</action>
         </initial_glyph>
        </initial>
        <tran trig="FEEDER_TIMED_FEED_CMD">
-        <action brief="Defer();">if (mOwner-&gt;defer(&amp;mDeferredEventQueue, e))
-{
+        <action brief="Defer();">if (mOwner-&gt;defer(&amp;mDeferredEventQueue, e)) {
     // Event deferred: log event.
-} else {
+}
+else {
     // Event NOT deferred because of no room in the defer queue: Log event.
 }
 </action>
@@ -263,14 +262,16 @@ mFeeder.init(e, std::uint_fast8_t {0});
 
 subscribe(MANUAL_FEED_BUTTON_EVT_SIG);
 subscribe(TIMED_FEED_BUTTON_EVT_SIG);</action>
-      <initial_glyph conn="4,2,5,0,4,6">
-       <action box="4,2,9,2"/>
+      <initial_glyph conn="4,4,5,0,4,4">
+       <action box="0,-2,9,2"/>
       </initial_glyph>
      </initial>
      <state name="Running">
       <documentation>The top running state.</documentation>
       <tran trig="TERMINATE">
-       <action brief="Stop();">// Requires QF_ACTIVE_STOP to be defined.
+       <action brief="Stop();">mFeeder.dispatch(e, 0);
+
+// Requires QF_ACTIVE_STOP to be defined.
 QP::QF::stop();</action>
        <tran_glyph conn="84,8,0,-1,-6,4">
         <action box="-10,-5,14,4"/>
@@ -280,10 +281,9 @@ QP::QF::stop();</action>
        <action brief="cast(e);">const auto lButtonEvent {static_cast&lt;const PFPP::Event::Mgr::ButtonEvt*&gt;(e)};</action>
        <choice>
         <guard brief="IsManualFeedEnable">mFeederCfg.mIsManualFeedEnable</guard>
-        <action brief="CreateManualFeedEvent(); Dispatch();">PFPP::Event::Feeder::ManualFeedCmd* const lManualFeedEvt = Q_NEW(
-    PFPP::Event::Feeder::ManualFeedCmd,
-    FEEDER_MANUAL_FEED_CMD_SIG
-);
+        <action brief="CreateManualFeedEvent(); Dispatch();">auto const lManualFeedEvt {
+    Q_NEW(PFPP::Event::Feeder::ManualFeedCmd, FEEDER_MANUAL_FEED_CMD_SIG)
+};
 
 lManualFeedEvt-&gt;mIsActive = lButtonEvent-&gt;mIsActive;
 lManualFeedEvt-&gt;mWaitPeriod = mToTicksFct(mFeederCfg.mManualFeedWaitPeriod);
@@ -309,13 +309,15 @@ mFeeder.dispatch(lManualFeedEvt, sManualFeedButton_Handler);</action>
       <tran trig="TIMED_FEED_BUTTON_EVT">
        <choice>
         <guard brief="IsTimedFeedEnable">mFeederCfg.mIsTimedFeedEnable</guard>
-        <action brief="CreateTimedFeedEvent(); Dispatch();">static const PFPP::Event::Feeder::TimedFeedCmd lTimedFeedEvt {
-    FEEDER_TIMED_FEED_CMD_SIG, 0U, 0U,
-    mToTicksFct(mFeederCfg.mTimedFeedPeriod)
+        <action brief="CreateTimedFeedEvent(); Dispatch();">auto const lTimedFeedEvt {
+    Q_NEW(PFPP::Event::Feeder::TimedFeedCmd, FEEDER_TIMED_FEED_CMD_SIG)
 };
 
+lTimedFeedEvt-&gt;mFeedPeriod = mToTicksFct(mFeederCfg.mTimedFeedPeriod);
+
 uint_fast8_t sTimedFeedButton_Handler {0U};
-mFeeder.dispatch(&amp;lTimedFeedEvt, sTimedFeedButton_Handler);</action>
+mFeeder.dispatch(lTimedFeedEvt, sTimedFeedButton_Handler);
+</action>
         <choice_glyph conn="30,26,5,-1,46">
          <action box="1,-2,43,2"/>
         </choice_glyph>
