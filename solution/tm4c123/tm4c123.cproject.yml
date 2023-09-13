@@ -6,7 +6,7 @@ project:
 
     - component: Quantum-Leaps::Utility&QP/C++:QEP
     - component: Quantum-Leaps::Utility&QP/C++:QF
-    #- component: Quantum-Leaps::Utility&QP/C++:QS
+    - component: Quantum-Leaps::Utility&QP/C++:QS
     #- component: Quantum-Leaps::Utility&QP/C++:QUTest
     - component: Quantum-Leaps::Utility&QP/C++:Ports:Native&QV
 
@@ -15,6 +15,7 @@ project:
 
   define:
     - TARGET_IS_TM4C123_RB1
+    - Q_SPY
 
   linker:
     - script: ./tm4c123.ld

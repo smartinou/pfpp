@@ -39,7 +39,8 @@
 #include "qp_ao/codegen/Signals.h"
 
 // From CMSIS-Pack.
-#include "TM4C123GH6PM.h"        // the device specific header (TI)
+// the device specific header (TI)
+#include "TM4C123GH6PM.h"
 
 // This project.
 // Borrowed from TI TivaWare libraries.
@@ -70,7 +71,12 @@ class DummyMotorControl final
     {
         GPIOF->RESERVED[LED_RED] = 0xFFU;
     }
-    void TurnOnCCW([[maybe_unused]] unsigned int aDutyCycle = 100) const { /* Do nothing. */}
+
+    void TurnOnCCW([[maybe_unused]] unsigned int aDutyCycle = 100) const
+    {
+        // Do nothing.
+    }
+
     void TurnOff() const
     {
         GPIOF->RESERVED[LED_RED] = 0U;
@@ -90,13 +96,22 @@ static void DebounceSwitches();
 
 static constexpr auto sBSPTicksPerSecond {100};
 
+#ifdef Q_SPY
+
+static QP::QSTimeCtr QS_tickTime_ {};
+static QP::QSTimeCtr QS_tickPeriod_ {};
+
+// QSpy source IDs
+static constexpr QP::QSpyId sSysTick_Handler {0U};
+static constexpr QP::QSpyId sOnFlush {0U};
+
+#endif // Q_SPY
+
 // *****************************************************************************
 //                            EXPORTED FUNCTIONS
 // *****************************************************************************
 int main()
 {
-    Init();
-
     // Initialize the framework and the underlying RT kernel.
     QP::QF::init();
 
@@ -110,11 +125,13 @@ int main()
 
     // Init publish-subscribe.
     static std::array<QP::QSubscrList, QTY_SIG> lSubsribeSto {};
-    QP::QF::psInit(lSubsribeSto.data(), Q_DIM(lSubsribeSto));
+    QP::QF::psInit(lSubsribeSto.data(), lSubsribeSto.size());
 
     // Send object dictionaries for event pools...
     QS_OBJ_DICTIONARY(sSmallPoolSto);
     QS_FUN_DICTIONARY(&QP::QHsm::top);
+
+    Init();
 
     using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
     auto lToTicksFct {
@@ -129,15 +146,14 @@ int main()
         std::make_unique<DummyMotorControl>(),
         lToTicksFct
     );
-#if 1
 
     lPFPPAO.start(
-        1U,       // QF-priority/preemption-threshold
+        1U,
         lEventQSto,
-        Q_DIM(lEventQSto), // event queue
-        nullptr, 0U                // stack (unused)
+        Q_DIM(lEventQSto),
+        nullptr, 0U
     );
-#endif
+
     return QP::QF::run();
 }
 
@@ -172,13 +188,18 @@ static void Init()
     GPIOF->CR |= BTN_SW2;
     //GPIOF->PDEN |= BTN_SW2;
 
-    GPIOF->DIR &= ~(BTN_SW1 | BTN_SW2); //  set direction: input
+    // Set direction: input.
+    GPIOF->DIR &= ~(BTN_SW1 | BTN_SW2);
     ROM_GPIOPadConfigSet(
         GPIOF_BASE,
         (BTN_SW1 | BTN_SW2),
         GPIO_STRENGTH_2MA,
         GPIO_PIN_TYPE_STD_WPU
     );
+
+    // Call QS::onStartup().
+    // Has to be setup early for dictionary entries to be set.
+    QS_INIT(nullptr);
 }
 
 
@@ -197,13 +218,14 @@ void QP::QF::onStartup()
     // Assign a priority to EVERY ISR explicitly by calling NVIC_SetPriority().
     // DO NOT LEAVE THE ISR PRIORITIES AT THE DEFAULT VALUE!
     //
-    NVIC_SetPriority(SysTick_IRQn,   QF_AWARE_ISR_CMSIS_PRI);
+    NVIC_SetPriority(SysTick_IRQn, QF_AWARE_ISR_CMSIS_PRI);
     // ...
 
     // enable IRQs...
 }
 
 
+//............................................................................
 void QP::QF::onCleanup()
 {
 }
@@ -242,6 +264,100 @@ extern "C" Q_NORETURN Q_onAssert(
     NVIC_SystemReset();
 }
 
+
+// QS callbacks ==============================================================
+#ifdef Q_SPY
+
+//............................................................................
+bool QP::QS::onStartup([[maybe_unused]] const void* const aArgs)
+{
+    // Buffer for Quantum Spy.
+    static std::array<uint8_t, 2 * 1024> sQSTxBuf {};
+    initBuf(sQSTxBuf.data(), sQSTxBuf.size());
+
+    // Buffer for QS receive channel.
+    static std::array<uint8_t, 100> sQSRxBuf {};
+    rxInitBuf(sQSRxBuf.data(), sQSRxBuf.size());
+
+    // To start the timestamp at zero.
+    QS_tickPeriod_ = SystemCoreClock / sBSPTicksPerSecond;
+    QS_tickTime_ = QS_tickPeriod_;
+
+    // Setup the QS filters...
+    QS_FILTER_ON(QS_QEP_STATE_ENTRY);
+    QS_FILTER_ON(QS_QEP_STATE_EXIT);
+    QS_FILTER_ON(QS_QEP_STATE_INIT);
+    QS_FILTER_ON(QS_QEP_INIT_TRAN);
+    QS_FILTER_ON(QS_QEP_INTERN_TRAN);
+    QS_FILTER_ON(QS_QEP_TRAN);
+    QS_FILTER_ON(QS_QEP_IGNORED);
+    QS_FILTER_ON(QS_QEP_DISPATCH);
+    QS_FILTER_ON(QS_QEP_UNHANDLED);
+
+    return true;
+}
+
+
+//............................................................................
+void QP::QS::onCleanup()
+{
+    // Used for QUTest only.
+}
+
+
+//............................................................................
+// NOTE: invoked with interrupts DISABLED.
+QP::QSTimeCtr QP::QS::onGetTime()
+{
+    if ((SysTick->CTRL & SysTick_CTRL_COUNTFLAG_Msk) == 0) {
+        return QS_tickTime_ - static_cast<QSTimeCtr>(SysTick->VAL);
+    }
+    else {
+        // The rollover occured, but the SysTick_ISR did not run yet.
+        return QS_tickTime_ + QS_tickPeriod_
+               - static_cast<QSTimeCtr>(SysTick->VAL);
+    }
+    return 0;
+}
+
+
+//............................................................................
+void QP::QS::onFlush()
+{
+#if 1
+    // At least one block of data ready to get out.
+    // Create an event for each of them and publish to all subscribing sinks.
+    // [MG] CREATE SINKS WITH lBlockSize BUFFERS.
+    uint16_t lBlockSize {1024};
+    QF_INT_DISABLE();
+    while (const auto lBlock {QS::getBlock(&lBlockSize)}) {
+        auto lQSPYBlockEvt {Q_NEW(BSP::Event::QSPYProcBlock, BSP_QSPY_PROC_BLOCK_SIG)};
+        QF_INT_ENABLE();
+
+        lQSPYBlockEvt->mBlock = lBlock;
+        lQSPYBlockEvt->mSize = lBlockSize;
+
+        // [MG] CONSIDER POSTING DIRECTLY TO SINKS.
+        // [MG] GOOD WAY TO CONTROL THE SINKS.
+        QP::QF::PUBLISH(lQSPYBlockEvt, &sOnFlush);
+        QF_INT_DISABLE();
+    }
+
+    QF_INT_ENABLE();
+#endif
+}
+
+
+//............................................................................
+//! callback function to reset the target (to be implemented in the BSP)
+void QP::QS::onReset()
+{
+    //NVIC_SystemReset();
+}
+
+#endif // Q_SPY
+
+
 extern "C"
 {
 
@@ -249,13 +365,14 @@ extern "C"
 void SysTick_Handler(void)
 {
 #ifdef Q_SPY
-    // QSpy source IDs
-    static const QP::QSpyId l_SysTick_Handler {0U};
+    // Clear SysTick_CTRL_COUNTFLAG.
+    // Account for the clock rollover.
+    [[maybe_unused]] const auto lTemp {SysTick->CTRL};
+    QS_tickTime_ += QS_tickPeriod_;
 #endif
 
-    //QTimeEvt::TICK_X(0U, nullptr); // process time events for rate 0
     // Call QF Tick function.
-    QP::QF::TICK_X(0U, nullptr);
+    QP::QF::TICK_X(0U, &sSysTick_Handler);
 
     // Perform the debouncing of buttons. The algorithm for debouncing
     // adapted from the book "Embedded Systems Dictionary" by Jack Ganssle
@@ -275,7 +392,7 @@ static void DebounceSwitches()
     static std::array<PinType, sStateDepth> sPinsState {0};
     static PinType sPreviousDebounce {0};
     static decltype(sPinsState.size()) lStateIx {0};
-    sPinsState.at(lStateIx) = ~ROM_GPIOPinRead(GPIOF_BASE, BTN_SW1 | BTN_SW2);//~GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
+    sPinsState.at(lStateIx) = ~GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
     ++lStateIx;
     if (lStateIx >= sPinsState.size()) {
         lStateIx = 0;
@@ -291,18 +408,15 @@ static void DebounceSwitches()
         )
     };
 
-#ifdef Q_SPY
-    static QP::QSpyId const sSysTick_Handler{0U};
-#endif // Q_SPY
     // What changed now? Look for pressed states.
     if ((~sPreviousDebounce) & lCurrentDebounce) {
 
         if (lCurrentDebounce & BTN_SW1) {
-            static const PFPP::Event::Mgr::ButtonEvt sOnEvt {MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            static const BSP::Event::ButtonEvt sOnEvt {BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
         if (lCurrentDebounce & BTN_SW2) {
-            static const PFPP::Event::Mgr::ButtonEvt sOnEvt {TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            static const BSP::Event::ButtonEvt sOnEvt {BSP_TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
     }
@@ -310,7 +424,7 @@ static void DebounceSwitches()
     // Look for released states.
     if (sPreviousDebounce & ~lCurrentDebounce) {
         if ((sPreviousDebounce) & BTN_SW1) {
-            static const PFPP::Event::Mgr::ButtonEvt sOffEvt {MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
+            static const BSP::Event::ButtonEvt sOffEvt {BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
             QP::QF::PUBLISH(&sOffEvt, &sSysTick_Handler);
         }
     }
