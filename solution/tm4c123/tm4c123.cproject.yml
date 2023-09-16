@@ -27,3 +27,4 @@ project:
         - file: startup_TM4C123GH6PM.c
         - file: ../../firmware/qp_ao/codegen/PFPP_AOs.cpp
         - file: ../../firmware/qp_ao/codegen/PFPP_HSMs.cpp
+        - file: ../../firmware/utils/shell/Shell.cpp
