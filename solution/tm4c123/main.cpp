@@ -22,6 +22,13 @@
 // *****************************************************************************
 //                              INCLUDE FILES
 // *****************************************************************************
+
+// RTE.
+#include <RTE_Components.h>
+#ifdef RTE_UTILITY_QP_CPP_QS
+#include <Pre_Include_Utility_QS.h>
+#endif
+
 #include <qpcpp.hpp>
 
 // Standard Libraries.
@@ -141,16 +148,16 @@ int main()
         }
     };
 
-    static QP::QEvt const *lEventQSto[10]; // Event queue storage for Blinky
-    PFPP::AO::Mgr lPFPPAO(
+    PFPP::AO::Mgr lPFPPAO {
         std::make_unique<DummyMotorControl>(),
         lToTicksFct
-    );
+    };
 
+    static std::array<const QP::QEvt*, 10> sEventQSto {};
     lPFPPAO.start(
         1U,
-        lEventQSto,
-        Q_DIM(lEventQSto),
+        sEventQSto.data(),
+        sEventQSto.size(),
         nullptr, 0U
     );
 
@@ -228,6 +235,7 @@ void QP::QF::onStartup()
 //............................................................................
 void QP::QF::onCleanup()
 {
+    QS_EXIT();
 }
 
 
@@ -284,15 +292,16 @@ bool QP::QS::onStartup([[maybe_unused]] const void* const aArgs)
     QS_tickTime_ = QS_tickPeriod_;
 
     // Setup the QS filters...
-    QS_FILTER_ON(QS_QEP_STATE_ENTRY);
-    QS_FILTER_ON(QS_QEP_STATE_EXIT);
-    QS_FILTER_ON(QS_QEP_STATE_INIT);
-    QS_FILTER_ON(QS_QEP_INIT_TRAN);
-    QS_FILTER_ON(QS_QEP_INTERN_TRAN);
-    QS_FILTER_ON(QS_QEP_TRAN);
-    QS_FILTER_ON(QS_QEP_IGNORED);
-    QS_FILTER_ON(QS_QEP_DISPATCH);
-    QS_FILTER_ON(QS_QEP_UNHANDLED);
+    QS_GLB_FILTER(QS_QEP_STATE_ENTRY);
+    QS_GLB_FILTER(QS_QEP_STATE_EXIT);
+    QS_GLB_FILTER(QS_QEP_STATE_INIT);
+    QS_GLB_FILTER(QS_QEP_INIT_TRAN);
+    QS_GLB_FILTER(QS_QEP_INTERN_TRAN);
+    QS_GLB_FILTER(QS_QEP_TRAN);
+    QS_GLB_FILTER(QS_QEP_IGNORED);
+    QS_GLB_FILTER(QS_QEP_DISPATCH);
+    QS_GLB_FILTER(QS_QEP_UNHANDLED);
+    //QS_LOC_FILTER();
 
     return true;
 }

@@ -57,15 +57,6 @@ public:
         const char* const aArgVal[]
     );
 
-    // Constructor.
-    //
-    // param[in]  aCmd	  The string command name
-    // param[in]  aCmdFnct  The routine that will be executed that corresponds to the command name
-    //   - This routine will be passed three parameters
-    //     - aShell       the pointer of the calling shell object.
-    //     - aArgCount    the number of valid parameters
-    //     - aArgVal      the string parameters to be processed by the command
-    //
     [[nodiscard]] explicit constexpr ShellCmd(
         const char* const aName,
         const tFunction aFunction,
@@ -76,17 +67,8 @@ public:
         , mParam{aParam}
     {/*Ctor body*/}
 
-    // \brief Return the string command name of this object
-    //
-    //  \returns The command name of this command
-    //
     [[nodiscard]] auto GetName() const noexcept -> std::string_view {return mName;}
 
-    // \brief Execute the command body of this command
-    //
-    // param[in] aArgCount The number of valid parameters in aArgVal
-    // param[in] aArgVal   The string parameters to be processed by the command
-    //
     void Execute(
         Shell* const aShell,
         const int aArgCount,

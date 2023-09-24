@@ -29,35 +29,22 @@ solution:
   define:
     - __ARM_ARCH_7EM__
 
-  language-C: c11
-  language-CPP: c++20
-  
-
   target-types:
     -
       type: DevBoard
       #board: ek-tm4c129exl
       misc:
-        - C:
-          - -Wall -Wextra 
-          #- -Werror
+        - C-CPP:
+          - -Wall -Wextra
           - -Wpedantic
+          #- -Werror
           #- -Wconversion
           - -mfloat-abi=hard
           - -mfpu=auto
           - -mthumb
           - -ffunction-sections -fdata-sections
         - CPP:
-          #- -std=c++20
           - -fno-rtti -fno-exceptions
-          - -Wall -Wextra 
-          #- -Werror
-          - -Wpedantic
-          #- -Wconversion
-          - -mfloat-abi=hard
-          - -mfpu=auto
-          - -mthumb
-          - -ffunction-sections -fdata-sections
         - Link:
           - -mfloat-abi=hard
           - -mfpu=auto
