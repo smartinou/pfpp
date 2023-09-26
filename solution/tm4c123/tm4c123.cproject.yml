@@ -16,9 +16,6 @@ project:
   define:
     - TARGET_IS_TM4C123_RB1
 
-  language-C: c11
-  language-CPP: c++20
-
   linker:
     - script: ./tm4c123.ld
 

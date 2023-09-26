@@ -1,9 +1,11 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/schemas/projmgr/2.0.0-dev1/tools/projmgr/schemas/csolution.schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Open-CMSIS-Pack/devtools/main/tools/projmgr/schemas/csolution.schema.json
 
 solution:
   description: "Pet Feeder Pet Project CMSIS solution file."
-  created-for: CMSIS-Toolbox@2.0.0
+  created-for: CMSIS-Toolbox@2.1.0
   compiler: GCC
+  language-C: c11
+  language-CPP: c++20
 
   packs:
     - pack: ARM::CMSIS
