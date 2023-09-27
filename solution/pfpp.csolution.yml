@@ -47,6 +47,7 @@ solution:
           - -ffunction-sections -fdata-sections
         - CPP:
           - -fno-rtti -fno-exceptions
+          - -Wno-psabi
         - Link:
           - -mfloat-abi=hard
           - -mfpu=auto

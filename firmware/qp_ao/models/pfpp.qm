@@ -18,6 +18,12 @@
      <documentation>The size of the data in the block.</documentation>
     </attribute>
    </class>
+   <class name="DailyTimeEntry" superclass="qpcpp::QEvt">
+    <documentation>Specifies a time entry for a daily calendar.</documentation>
+    <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
+     <documentation>The time to set in the calendar.</documentation>
+    </attribute>
+   </class>
   </package>
  </package>
  <package name="project" stereotype="0x02" namespace="PFPP::">
@@ -261,6 +267,12 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
     <attribute name="mToTicksFct" type="ToTicksFct" visibility="0x02" properties="0x00">
      <documentation>Reference to function that converts ms to BSP ticks.</documentation>
     </attribute>
+    <attribute name="mDailyPlanner {}" type="DailyPlanner&lt;std::chrono::seconds&gt;" visibility="0x02" properties="0x00">
+     <documentation>A daily planner for feeding the beast.</documentation>
+    </attribute>
+    <attribute name="mAlarmID {0}" type="unsigned int" visibility="0x02" properties="0x00">
+     <documentation>An index used to identify this alarm.</documentation>
+    </attribute>
     <operation name="Mgr" type="" visibility="0x00" properties="0x00">
      <specifiers>noexcept</specifiers>
      <documentation>Ctor.</documentation>
@@ -272,6 +284,60 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
     , mToTicksFct{aToTicksFct}
 
 // Ctor body.</code>
+    </operation>
+    <operation name="SetNextAlarm" type="void" visibility="0x02" properties="0x00">
+     <specifiers>const</specifiers>
+     <documentation>Sets the next alarm according to entries in daily calendar.
+Cancels existing alarm if none available.</documentation>
+     <parameter name="aTime" type="const std::chrono::minutes"/>
+     <code>const auto lNextEntry {mDailyPlanner.GetNextEntry(aTime)};
+if (lNextEntry) {
+    auto lSetAlarmEvt {
+        Q_NEW(RTCC::Event::SetAlarm, RTCC_SET_ALARM_SIG)
+    };
+
+#if Q_SPY
+    static const uint8_t sSetNextAlarm = 0U;
+#endif
+    lSetAlarmEvt-&gt;mID = mAlarmID;
+    lSetAlarmEvt-&gt;mIsSelfCleared = true;
+    lSetAlarmEvt-&gt;mTime = aTime;
+    lSetAlarmEvt-&gt;mWeekday = std::chrono::weekday{};
+    lSetAlarmEvt-&gt;mCallback = nullptr;
+    lSetAlarmEvt-&gt;mParam = nullptr;
+
+    QP::QF::PUBLISH(lSetAlarmEvt, &amp;sSetNextAlarm);
+}
+else {
+    // Alarm is self cleared. Nothing to do.
+}</code>
+    </operation>
+    <operation name="DispatchTimedFeedEvent" type="void" visibility="0x02" properties="0x00">
+     <documentation>Creates and dispatches timed feed event to Feeder.</documentation>
+     <code>auto const lTimedFeedEvt {
+    Q_NEW(PFPP::Event::Feeder::TimedFeedCmd, FEEDER_TIMED_FEED_CMD_SIG)
+};
+
+lTimedFeedEvt-&gt;mFeedPeriod = mToTicksFct(mFeederCfg.mTimedFeedPeriod);
+
+uint_fast8_t sTimedFeedButton_Handler {0U};
+mFeeder.dispatch(lTimedFeedEvt, sTimedFeedButton_Handler);
+</code>
+    </operation>
+    <operation name="DispatchManualFeedEvent" type="void" visibility="0x02" properties="0x00">
+     <documentation>Creates and dispatches manual feed event to Feeder.</documentation>
+     <parameter name="aIsActive" type="const bool"/>
+     <code>auto const lManualFeedEvt {
+    Q_NEW(PFPP::Event::Feeder::ManualFeedCmd, FEEDER_MANUAL_FEED_CMD_SIG)
+};
+
+lManualFeedEvt-&gt;mIsActive = aIsActive;
+lManualFeedEvt-&gt;mWaitPeriod = mToTicksFct(mFeederCfg.mManualFeedWaitPeriod);
+lManualFeedEvt-&gt;mMaxFeedPeriod = mToTicksFct(mFeederCfg.mManualFeedMaxFeedPeriod);
+
+uint_fast8_t sManualFeedButton_Handler {0U};
+mFeeder.dispatch(lManualFeedEvt, sManualFeedButton_Handler);
+</code>
     </operation>
     <statechart properties="0x00">
      <documentation>mFeeder.dispatch(e, 0);</documentation>
@@ -297,19 +363,10 @@ QP::QF::stop();</action>
        </tran_glyph>
       </tran>
       <tran trig="BSP_MANUAL_FEED_BUTTON_EVT">
-       <action brief="cast(e);">const auto lButtonEvent {static_cast&lt;const BSP::Event::ButtonEvt*&gt;(e)};</action>
+       <action brief="Cast(e);">const auto lButtonEvent {static_cast&lt;const BSP::Event::ButtonEvt*&gt;(e)};</action>
        <choice>
         <guard brief="IsManualFeedEnable">mFeederCfg.mIsManualFeedEnable</guard>
-        <action brief="CreateManualFeedEvent(); Dispatch();">auto const lManualFeedEvt {
-    Q_NEW(PFPP::Event::Feeder::ManualFeedCmd, FEEDER_MANUAL_FEED_CMD_SIG)
-};
-
-lManualFeedEvt-&gt;mIsActive = lButtonEvent-&gt;mIsActive;
-lManualFeedEvt-&gt;mWaitPeriod = mToTicksFct(mFeederCfg.mManualFeedWaitPeriod);
-lManualFeedEvt-&gt;mMaxFeedPeriod = mToTicksFct(mFeederCfg.mManualFeedMaxFeedPeriod);
-
-uint_fast8_t sManualFeedButton_Handler {0U};
-mFeeder.dispatch(lManualFeedEvt, sManualFeedButton_Handler);</action>
+        <action brief="DispatchManualFeedEvent();">DispatchManualFeedEvent(lButtonEvent-&gt;mIsActive);</action>
         <choice_glyph conn="32,16,5,-1,46">
          <action box="1,-2,44,2"/>
         </choice_glyph>
@@ -328,15 +385,7 @@ mFeeder.dispatch(lManualFeedEvt, sManualFeedButton_Handler);</action>
       <tran trig="BSP_TIMED_FEED_BUTTON_EVT">
        <choice>
         <guard brief="IsTimedFeedEnable">mFeederCfg.mIsTimedFeedEnable</guard>
-        <action brief="CreateTimedFeedEvent(); Dispatch();">auto const lTimedFeedEvt {
-    Q_NEW(PFPP::Event::Feeder::TimedFeedCmd, FEEDER_TIMED_FEED_CMD_SIG)
-};
-
-lTimedFeedEvt-&gt;mFeedPeriod = mToTicksFct(mFeederCfg.mTimedFeedPeriod);
-
-uint_fast8_t sTimedFeedButton_Handler {0U};
-mFeeder.dispatch(lTimedFeedEvt, sTimedFeedButton_Handler);
-</action>
+        <action brief="DispatchTimedFeedEvent();">DispatchTimedFeedEvent();</action>
         <choice_glyph conn="32,26,5,-1,46">
          <action box="1,-2,43,2"/>
         </choice_glyph>
@@ -354,13 +403,41 @@ mFeeder.dispatch(lTimedFeedEvt, sTimedFeedButton_Handler);
       </tran>
       <tran trig="FEEDER_TIMEOUT, FEEDER_MANUAL_FEED_CMD, FEEDER_TIMED_FEED_CMD">
        <action brief="Dispatch();">mFeeder.dispatch(e, 0);</action>
-       <tran_glyph conn="4,38,3,-1,72">
+       <tran_glyph conn="4,38,3,-1,74">
         <action box="0,-2,72,2"/>
        </tran_glyph>
       </tran>
-      <state_glyph node="4,8,84,34"/>
+      <tran trig="RTCC_ALARM">
+       <action brief="Cast(e);">const auto lAlarmFiredEvt {static_cast&lt;const RTCC::Event::AlarmFired*&gt;(e)};</action>
+       <choice>
+        <guard brief="ID == MyID">lAlarmFiredEvt-&gt;mID == mAlarmID</guard>
+        <action brief="DispatchTimedFeedEvent(); SetNextAlarm();">DispatchTimedFeedEvent();
+SetNextAlarm(lAlarmFiredEvt-&gt;mTime);</action>
+        <choice_glyph conn="32,50,5,-1,46">
+         <action box="1,-2,45,2"/>
+        </choice_glyph>
+       </choice>
+       <tran_glyph conn="4,50,3,-1,28">
+        <action box="0,-2,14,4"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="BSP_SET_DAILY_FEED_TIME">
+       <action brief="AddDailyEntry();">const auto lDailyEntryEvt {static_cast&lt;const BSP::Event::DailyTimeEntry*&gt;(e)};
+mDailyPlanner.AddEntry(lDailyEntryEvt-&gt;mTime);</action>
+       <tran_glyph conn="4,44,3,-1,74">
+        <action box="0,-2,36,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="RTCC_SET_TIME, RTCC_SET_TIME_AND_DATE">
+       <action brief="SetNextAlarm();">const auto lTimeAndDateEvt {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
+SetNextAlarm(lTimeAndDateEvt-&gt;mTime);</action>
+       <tran_glyph conn="4,56,3,-1,74">
+        <action box="0,-2,74,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph node="4,8,84,54"/>
      </state>
-     <state_diagram size="92,46"/>
+     <state_diagram size="92,66"/>
     </statechart>
    </class>
    <class name="BLE_AO" superclass="qpcpp::QActive">
@@ -470,6 +547,9 @@ stop();</action>
 // QP.
 #include &lt;qpcpp.hpp&gt;
 
+// Standard libraries.
+#include &lt;chrono&gt;
+
 
 $declare${project::Events::Feeder::ManualFeedCmd}
 $declare${project::Events::Feeder::TimedFeedCmd}
@@ -522,6 +602,8 @@ $define${project::HSMs::Feeder}
 #include &quot;qp_ao/codegen/PFPP_Events.h&quot;
 #include &quot;qp_ao/codegen/Signals.h&quot;
 
+#include &quot;qp_ao/codegen/RTCC_Events.h&quot;
+
 // Drivers.
 #include &quot;drivers/inc/IMotorControl.h&quot;
 
@@ -541,8 +623,8 @@ $define${project::AOs::Mgr}
 // QP.
 #include &lt;qpcpp.hpp&gt;
 
-// QM Project.
-//#include &quot;Utils.h&quot;
+// Firmware.
+#include &quot;inc/CalendarCfg.h&quot;
 
 // This project.
 #include &quot;PFPP_HSMs.h&quot;
@@ -623,17 +705,18 @@ enum Signals
 
     // RTCC AO.
     RTCC_TICK_SIG,
-    //RTCC_ALARM_SIG,
+    RTCC_ALARM_SIG,
     RTCC_SET_TIME_SIG,
     RTCC_SET_DATE_SIG,
     RTCC_SET_TIME_AND_DATE_SIG,
-    RTCC_SET_ONE_SHOT_ALARM_SIG,
-    RTCC_SET_PERIODIC_ALARM_SIG,
+    RTCC_SET_ALARM_SIG,
+    RTCC_CLEAR_ALARM_SIG,
     RTCC_INTERRUPT_SIG,
 
     // BSP signals.
     BSP_MANUAL_FEED_BUTTON_EVT_SIG,
     BSP_TIMED_FEED_BUTTON_EVT_SIG,
+    BSP_SET_DAILY_FEED_TIME_SIG,
 
     BSP_QSPY_PROC_BLOCK_SIG,
 

@@ -1,7 +1,91 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <package name="RTCC" stereotype="0x04" namespace="RTCC::">
+ <package name="QHSMs" stereotype="0x02" namespace="HSM::">
+  <class name="Alarm" superclass="qpcpp::QHsm">
+   <documentation>A state machine to handle arming and reacting to alarms.</documentation>
+   <attribute name="mID" type="unsigned int" visibility="0x02" properties="0x00">
+    <documentation>The ID representing the alarm when multiple alarm HSMs are supported.</documentation>
+   </attribute>
+   <attribute name="mOwner" type="QP::QActive&amp;" visibility="0x02" properties="0x00">
+    <documentation>Owner of this HSM.</documentation>
+   </attribute>
+   <attribute name="mDeferredEventQueueSto[4] {}" type="const QP::QEvt*" visibility="0x02" properties="0x00"/>
+   <attribute name="mDeferredEventQueue {}" type="QP::QMActive" visibility="0x02" properties="0x00">
+    <documentation>The queue of deferred events.</documentation>
+   </attribute>
+   <operation name="Alarm" type="" visibility="0x00" properties="0x00">
+    <specifiers>noexcept</specifiers>
+    <documentation>Ctor.</documentation>
+    <parameter name="aID" type="const unsigned int"/>
+    <parameter name="aOwner" type="QP::QActive&amp;"/>
+    <code>    : QP::QActive{Q_STATE_CAST(&amp;RTCC::HSM::Alarm::initial)}
+    , mOwner{aOwner}
+
+// Ctor body.</code>
+   </operation>
+   <statechart properties="0x00">
+    <documentation>One-shot alarm state.</documentation>
+    <initial target="../1">
+     <action brief="Init();">// Initialize the QF queue for deferred feed requests.
+mDeferredEventQueue.init(mDeferredEventQueueSto, Q_DIM(mDeferredEventQueueSto));</action>
+     <initial_glyph conn="4,20,5,0,6,4">
+      <action box="0,-2,10,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="Idle">
+     <documentation>Idle state.</documentation>
+     <tran trig="RTCC_SET_ONE_SHOT_ALARM" target="../../2/2">
+      <tran_glyph conn="20,24,0,3,-4,28">
+       <action box="0,-6,26,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="RTCC_SET_PERIODIC_ALARM" target="../../2/3">
+      <tran_glyph conn="20,42,2,3,4,28">
+       <action box="0,2,25,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="4,24,22,18"/>
+    </state>
+    <state name="Armed">
+     <documentation>Alarm armed superstate.</documentation>
+     <tran trig="ALARM_CLEAR" target="../../1">
+      <action brief="Recall();">mOwner-&gt;recall(&amp;mDeferredEventQueue);</action>
+      <tran_glyph conn="44,36,3,1,-18">
+       <action box="-17,-2,20,4"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="TERMINATE">
+      <tran_glyph conn="74,8,0,-1,-4,6">
+       <action box="0,-6,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state name="OneShot">
+      <tran trig="RTC_SET_ALARM">
+       <action brief="Defer();">if (mOwner-&gt;defer(&amp;mDeferredEventQueue, e)) {
+    // Event deferred: log event.
+}
+else {
+    // Event NOT deferred because of no room in the defer queue: Log event.
+}
+</action>
+       <tran_glyph conn="48,26,3,-1,24">
+        <action box="0,-2,25,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph node="48,14,28,18"/>
+     </state>
+     <state name="Periodic">
+      <documentation>Periodic alarm state.</documentation>
+      <state_glyph node="48,40,28,18"/>
+     </state>
+     <state_glyph node="44,8,36,54"/>
+    </state>
+    <state_diagram size="86,72"/>
+   </statechart>
+  </class>
+ </package>
  <package name="AOs" stereotype="0x02" namespace="AO::">
-  <class name="RTCC_AO" superclass="qpcpp::QActive">
+  <class name="Mgr" superclass="qpcpp::QActive">
    <documentation>RTCC Active Object.
 Uses signals from an RTCC component to maintain date and time.
 
@@ -36,35 +120,38 @@ Can perform various other tasks like saving to Non-Volatile memory and read temp
    <attribute name="mNVMemBuf {}? 0" type="std::unique_ptr&lt;uint8_t []&gt;" visibility="0x02" properties="0x00">
     <documentation>Pointer to the non-volatile memory buffer.</documentation>
    </attribute>
-   <operation name="RTCC_AO" type="" visibility="0x00" properties="0x00">
+   <attribute name="mAlarms" type="std::vector&lt;RTCC::HSM::Alarm&gt;" visibility="0x00" properties="0x00">
+    <documentation>An array holding the holding the orthogonal HSM Alarm componnents.</documentation>
+   </attribute>
+   <operation name="Mgr" type="" visibility="0x00" properties="0x00">
     <documentation>Ctor.
 </documentation>
     <parameter name="aRTCC" type="std::shared_ptr&lt;IRTCC&gt;"/>
     <parameter name="aTemperature" type="std::shared_ptr&lt;ITemperature&gt;"/>
     <parameter name="aNVMem" type="std::shared_ptr&lt;INVMem&gt;"/>
     <parameter name="aCalendarRec" type="std::shared_ptr&lt;CalendarRec&gt;"/>
-    <code>    : QP::QActive(Q_STATE_CAST(&amp;RTCC::AO::RTCC_AO::initial))
+    <code>    : QP::QActive(Q_STATE_CAST(&amp;RTCC::AO::Mgr::initial))
     , mRTCC{std::move(aRTCC)}
-    , mITemperature{std::move(aTemperature)}
-    , mNVMem{std::move(aNVMem)}
-    , mCalendarRec{std::move(aCalendarRec)}
+    //, mITemperature{std::move(aTemperature)}
+    //, mNVMem{std::move(aNVMem)}
+    //, mCalendarRec{std::move(aCalendarRec)}
 
 // Ctor body left empty.</code>
    </operation>
-   <operation name="GetTemperature" type="float" visibility="0x00" properties="0x02">
+   <operation name="GetTemperature? 0" type="float" visibility="0x00" properties="0x02">
     <specifiers>const</specifiers>
     <documentation>Returns the last snapshot of temperature if available.
 If not returns 0.0.
 </documentation>
     <code>return mTemperature;</code>
    </operation>
-   <operation name="GetTime" type="std::chrono::minutes const &amp;" visibility="0x00" properties="0x02">
+   <operation name="GetTime? 0" type="std::chrono::minutes const &amp;" visibility="0x00" properties="0x02">
     <specifiers>const</specifiers>
     <documentation>Returns the last snapshot of Time readout.
 </documentation>
     <code>return mTime;</code>
    </operation>
-   <operation name="GetDate" type="std::chrono::year_month_day" visibility="0x00" properties="0x02">
+   <operation name="GetDate" type="std::chrono::year_month_day? 0" visibility="0x00" properties="0x02">
     <specifiers>const</specifiers>
     <documentation>Returns the last snapshot of Date readout.
 </documentation>
@@ -182,11 +269,9 @@ subscrube(RTCC_SET_TIME_ALARM_SIG);
     </initial>
     <state name="Running">
      <documentation>The top Running state.</documentation>
-     <entry brief="EnableRTCCInterrupt();">mRTCC-&gt;SetInterrupt(true);</entry>
-     <exit brief="DisableRTCCInterrupt();">mRTCC-&gt;SetInterrupt(false);</exit>
+     <entry brief="EnableInterrupts();">mRTCC-&gt;SetInterrupt(true);</entry>
+     <exit brief="DisableInterrupts();">mRTCC-&gt;SetInterrupt(false);</exit>
      <tran trig="TERMINATE">
-      <action brief="Stop();">// Requires QF_ACTIVE_STOP to be defined.
-QP::QF::stop();</action>
       <tran_glyph conn="70,10,0,-1,-6,6">
        <action box="0,-8,10,4"/>
       </tran_glyph>
@@ -195,11 +280,11 @@ QP::QF::stop();</action>
       <action brief="SetTime(aTime);">//LOG_INFO(&amp;sLogCategory[0], &quot;New time set.&quot;);
 const auto lSetTimeEvent {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
 mRTCC-&gt;WrTime(lSetTimeEvent-&gt;mTime);
-mRTCC-&gt;GetTimeAndDate(mTime, mDate);
+//mRTCC-&gt;GetTimeAndDate(mTime, mDate);
 
 //SetNextCalendarEvent();
 </action>
-      <tran_glyph conn="4,20,3,-1,40">
+      <tran_glyph conn="4,20,3,-1,46">
        <action box="0,-2,36,2"/>
       </tran_glyph>
      </tran>
@@ -207,16 +292,16 @@ mRTCC-&gt;GetTimeAndDate(mTime, mDate);
       <action brief="SetDate(aDate);">//LOG_INFO(&amp;sLogCategory[0], &quot;New date set.&quot;);
 const auto lSetEventDate {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
 mRTCC-&gt;WrDate(lSetEventDate-&gt;mDate);
-mRTCC-&gt;GetTimeAndDate(mTime, mDate);
+//mRTCC-&gt;GetTimeAndDate(mTime, mDate);
 
 //SetNextCalendarEvent();
 </action>
-      <tran_glyph conn="4,24,3,-1,40">
+      <tran_glyph conn="4,24,3,-1,46">
        <action box="0,-2,36,2"/>
       </tran_glyph>
      </tran>
      <tran trig="RTCC_INTERRUPT">
-      <action brief="ReadTimeAndTemp(); ^RTCC_TICK">// Set data as impure to force refresh of data read from RTCC.
+      <action brief="ReadTimeAndDate(); ^RTCC_TICK">// Set data as impure to force refresh of data read from RTCC.
 mRTCC-&gt;SetImpure();
 mRTCC-&gt;GetTimeAndDate(mTime, mDate);
 //mTemperature = mITemperature-&gt;GetTemperature();
@@ -236,8 +321,8 @@ const bool lIsCalendarAlarm {mRTCC-&gt;IsAlarmOn()};
 mRTCC-&gt;AckInterrupt();
 </action>
       <choice>
-       <guard brief="Source == CalendarAlarm">lIsCalendarAlarm == true</guard>
-       <action brief="PublishCalendarEvent();">// Got a calendar event alarm: create event.
+       <action brief="DoNothing();">#if 0
+// Got a calendar event alarm: create event.
 // Set next calendar alarm event.
 //LOG_INFO(&amp;sLogCategory[0], &quot;Calendar event.&quot;);
 // Check the alarm that triggered and its context (callback + param).
@@ -252,51 +337,47 @@ const auto lCalendarEvent {
     )
 };
 QP::QF::PUBLISH(lCalendarEvent, this);
-
+#endif
 //SetNextCalendarEvent();
 </action>
-       <choice_glyph conn="44,28,5,-1,28">
+       <choice_glyph conn="50,40,5,-1,22">
         <action box="1,0,28,4"/>
        </choice_glyph>
       </choice>
-      <tran_glyph conn="4,28,3,-1,40">
-       <action box="0,-2,35,4"/>
-      </tran_glyph>
-     </tran>
-     <tran trig="RTCC_SAVE_TO_NV_MEMORY? 0">
-      <action>RTCC::Event::SaveToRAM const * const lSaveEvent = static_cast&lt;RTCC::Event::SaveToRAM const *&gt;(e);
-</action>
-      <choice>
-       <guard brief="CalendarChanged == true">lSaveEvent-&gt;mIsDataImpure</guard>
-       <action brief="WriteToNvMemory();">// Save to NV mem.
-WrToNVMem();
-SetNextCalendarEvent();
-</action>
-       <choice_glyph conn="44,34,5,-1,28">
-        <action box="1,0,27,4"/>
-       </choice_glyph>
-      </choice>
-      <tran_glyph conn="4,34,3,-1,40">
-       <action box="0,-2,34,2"/>
+      <tran_glyph conn="4,40,3,-1,46">
+       <action box="0,-2,44,2"/>
       </tran_glyph>
      </tran>
      <tran trig="RTCC_SET_TIME_AND_DATE">
       <action brief="SetTimeAndDate(aTime, aDate)">const auto lSetTimeEvent {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
 mRTCC-&gt;WrTimeAndDate(lSetTimeEvent-&gt;mTime, lSetTimeEvent-&gt;mDate);
-mRTCC-&gt;GetTimeAndDate(mTime, mDate);
+//mRTCC-&gt;GetTimeAndDate(mTime, mDate);
 
 //SetNextCalendarEvent();
 </action>
-      <tran_glyph conn="4,38,3,-1,40">
-       <action box="0,-2,28,4"/>
+      <tran_glyph conn="4,28,3,-1,46">
+       <action box="0,-2,46,2"/>
       </tran_glyph>
      </tran>
-     <state_glyph node="4,10,72,32">
+     <tran trig="RTCC_SET_ONE_SHOT_ALARM, RTCC_PERIODIC_ALARM">
+      <action brief="Dispatch();">const auto lAlarmEvt {static_cast&lt;RTCC::Event::AlarmBase&gt;(e)};
+mAlarms.at(lAlarmEvt-&gt;mID).dispatch(e);</action>
+      <tran_glyph conn="4,32,3,-1,68">
+       <action box="0,-2,60,2"/>
+      </tran_glyph>
+     </tran>
+     <tran trig="ALARM_CLEAR">
+      <action brief="Clear();"/>
+      <tran_glyph conn="4,36,3,-1,46">
+       <action box="0,-2,40,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="4,10,72,42">
       <entry box="1,2,23,2"/>
       <exit box="1,4,23,2"/>
      </state_glyph>
     </state>
-    <state_diagram size="80,46"/>
+    <state_diagram size="80,56"/>
    </statechart>
   </class>
  </package>
@@ -320,27 +401,29 @@ mRTCC-&gt;GetTimeAndDate(mTime, mDate);
    <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
     <documentation>The new Time to propagate.</documentation>
    </attribute>
-   <attribute name="mDate" type="std::chrono::year_mont_day" visibility="0x00" properties="0x00">
+   <attribute name="mDate" type="std::chrono::year_month_day" visibility="0x00" properties="0x00">
     <documentation>The new Date to propagate.</documentation>
    </attribute>
-   <operation name="TimeAndDate? 0" type="" visibility="0x00" properties="0x02">
-    <documentation>Ctor.</documentation>
-    <parameter name="aSignal" type="QP::QSignal const"/>
-    <parameter name="aTime" type="Time const &amp;"/>
-    <parameter name="aDate" type="Date const &amp;"/>
-    <code>    : QP::QEvt(aSignal)
-    , mTime(aTime)
-    , mDate(aDate)
-// Ctor body left empty.</code>
-   </operation>
   </class>
-  <class name="Alarm" superclass="RTCC::Events::TimeAndDate">
-   <documentation>An event to signal the alarm has kicked.</documentation>
-   <attribute name="mCallback" type="void (*)(void*)" visibility="0x00" properties="0x00">
+  <class name="SetAlarm" superclass="qpcpp::QEvt">
+   <documentation>The base class for alarm events.</documentation>
+   <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
+    <documentation>A unique identifier to associate with an alarm caller.</documentation>
+   </attribute>
+   <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
+    <documentation>The time to set the alarm to.</documentation>
+   </attribute>
+   <attribute name="mWeekday" type="std::chrono::weekday" visibility="0x00" properties="0x00">
+    <documentation>The weekday to set the alarm to.</documentation>
+   </attribute>
+   <attribute name="mCallback" type="void*" visibility="0x00" properties="0x00">
     <documentation>The function to callback when alarm has kicked.</documentation>
    </attribute>
-   <attribute name="aParam" type="void*" visibility="0x00" properties="0x00">
+   <attribute name="mParam" type="void*" visibility="0x00" properties="0x00">
     <documentation>The parameter to pass to the callback function.</documentation>
+   </attribute>
+   <attribute name="mIsSelfCleared" type="bool" visibility="0x00" properties="0x00">
+    <documentation>Flag to set if the alarm should clear itself once triggered.</documentation>
    </attribute>
   </class>
   <class name="SaveToRAM? 0" superclass="qpcpp::QEvt">
@@ -370,20 +453,30 @@ Pass QP::QEvt::StaticEvt::STATIC_EVT for aStatic parameter.</documentation>
 // Ctor left empty.</code>
    </operation>
   </class>
+  <class name="AlarmFired" superclass="qpcpp::QEvt">
+   <documentation>The event when an  alarm is fired.</documentation>
+   <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
+    <documentation>A unique identifier to associate with an alarm caller.</documentation>
+   </attribute>
+   <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
+    <documentation>The time at which the alarm was fired.</documentation>
+   </attribute>
+  </class>
  </package>
  <directory name="../codegen">
   <file name="RTCC_Events.h">
-   <text>#include &lt;qpcpp.h&gt;
+   <text>#ifndef RTCC__EVENTS_H_
+#define RTCC__EVENTS_H_
 
-#include &lt;time/Time.h&gt;
-#include &lt;date/Date.h&gt;
-
-class CalendarRec;
+// QP.
+#include &lt;qpcpp.hpp&gt;
 
 
-$declare${RTCC::Events::Init}
 $declare${RTCC::Events::TimeAndDate}
-$declare${RTCC::Events::SaveToRAM}
+$declare${RTCC::Events::SetAlarm}
+$declare${RTCC::Events::AlarmFired}
+
+#endif // RTCC__EVENTS_H_
 </text>
   </file>
   <file name="RTCC_AOs.h">
