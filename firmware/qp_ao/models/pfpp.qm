@@ -287,22 +287,23 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
 
 // Ctor body.</code>
     </operation>
-    <operation name="SetNextAlarm" type="void" visibility="0x02" properties="0x00">
+    <operation name="SetNextAlarm" type="void" visibility="0x02" properties="0x02">
      <specifiers>const</specifiers>
      <documentation>Sets the next alarm according to entries in daily calendar.
 Cancels existing alarm if none available.</documentation>
-     <code>const auto lSetAlarmEvt {Q_NEW(RTCC::Event::SetAlarm, RTCC_SET_ALARM_SIG)};
+     <code>const auto lAlarmTimeEvt {Q_NEW(RTCC::Event::AlarmTime, RTCC_SET_ALARM_SIG)};
 
-lSetAlarmEvt-&gt;mID = mAlarmID;
-lSetAlarmEvt-&gt;mIsSelfCleared = true;
-lSetAlarmEvt-&gt;mGetAlarmTimeFct = StaticGetNextAlarm;
-lSetAlarmEvt-&gt;mParam = this;
+lAlarmTimeEvt-&gt;mID = mAlarmID;
+lAlarmTimeEvt-&gt;mIsSelfCleared = true;
+lAlarmTimeEvt-&gt;mAlarmRate = eAlarmRate::HoursMinutesMatch;
+lAlarmTimeEvt-&gt;mGetAlarmTimeFct = StaticGetNextAlarm;
+lAlarmTimeEvt-&gt;mParam = this;
 
 #if Q_SPY
 static const uint8_t sSetNextAlarm = 0U;
 #endif
 
-QP::QF::PUBLISH(lSetAlarmEvt, &amp;sSetNextAlarm);
+QP::QF::PUBLISH(lAlarmTimeEvt, &amp;sSetNextAlarm);
 </code>
     </operation>
     <operation name="DispatchTimedFeedEvent" type="void" visibility="0x02" properties="0x00">

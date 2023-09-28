@@ -405,10 +405,13 @@ mAlarms.at(lAlarmEvt-&gt;mID).dispatch(e);</action>
     <documentation>The new Date to propagate.</documentation>
    </attribute>
   </class>
-  <class name="SetAlarm" superclass="qpcpp::QEvt">
+  <class name="AlarmTime" superclass="qpcpp::QEvt">
    <documentation>Sets the alarm with the help of a function to get the time.</documentation>
    <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
     <documentation>A unique identifier to associate with an alarm caller.</documentation>
+   </attribute>
+   <attribute name="mRate" type="eAlarmRate" visibility="0x00" properties="0x00">
+    <documentation>The period of the alarm to set.</documentation>
    </attribute>
    <attribute name="mIsSelfCleared" type="bool" visibility="0x00" properties="0x00">
     <documentation>Flag to set if the alarm should clear itself once triggered.</documentation>
@@ -418,6 +421,15 @@ mAlarms.at(lAlarmEvt-&gt;mID).dispatch(e);</action>
    </attribute>
    <attribute name="(*mGetAlarmTimeFct)(void*, const std::chrono::seconds aTime)" type="std::optional&lt;std::chrono::seconds&gt;" visibility="0x00" properties="0x00">
     <documentation>The helper function to determine the alarm time.</documentation>
+   </attribute>
+  </class>
+  <class name="AlarmFired" superclass="qpcpp::QEvt">
+   <documentation>The event when an  alarm is fired.</documentation>
+   <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
+    <documentation>A unique identifier to associate with an alarm caller.</documentation>
+   </attribute>
+   <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
+    <documentation>The time at which the alarm was fired.</documentation>
    </attribute>
   </class>
   <class name="SaveToRAM? 0" superclass="qpcpp::QEvt">
@@ -447,15 +459,6 @@ Pass QP::QEvt::StaticEvt::STATIC_EVT for aStatic parameter.</documentation>
 // Ctor left empty.</code>
    </operation>
   </class>
-  <class name="AlarmFired" superclass="qpcpp::QEvt">
-   <documentation>The event when an  alarm is fired.</documentation>
-   <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
-    <documentation>A unique identifier to associate with an alarm caller.</documentation>
-   </attribute>
-   <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
-    <documentation>The time at which the alarm was fired.</documentation>
-   </attribute>
-  </class>
  </package>
  <directory name="../codegen">
   <file name="RTCC_Events.h">
@@ -466,8 +469,23 @@ Pass QP::QEvt::StaticEvt::STATIC_EVT for aStatic parameter.</documentation>
 #include &lt;qpcpp.hpp&gt;
 
 
+enum class eAlarmRate
+{
+    OncePerSecond,
+    SecondsMatch,
+    MinutesSecondMatch,
+    HoursMinutesSecondsMatch,
+    DateHoursMinutesSecondsMatch,
+    DayHoursMinutesSecondsMatch,
+    OncePerMinute,
+    MinutesMatch,
+    HoursMinutesMatch,
+    DateHoursMinutesMatch,
+    DayHoursMinutesMatch
+};
+
 $declare${RTCC::Events::TimeAndDate}
-$declare${RTCC::Events::SetAlarm}
+$declare${RTCC::Events::AlarmTime}
 $declare${RTCC::Events::AlarmFired}
 
 #endif // RTCC__EVENTS_H_
