@@ -148,7 +148,9 @@ int main()
         }
     };
 
+    static constexpr auto sAlarmID {0};
     PFPP::AO::Mgr lPFPPAO {
+        sAlarmID,
         std::make_unique<DummyMotorControl>(),
         lToTicksFct
     };

@@ -258,6 +258,9 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
 -Translates calendar alarm events into feeding signals.
 -Perform logging,
 -Updates display.</documentation>
+    <attribute name="mAlarmID" type="unsigned int" visibility="0x02" properties="0x00">
+     <documentation>An index used to identify this alarm.</documentation>
+    </attribute>
     <attribute name="mFeeder" type="PFPP::HSM::Feeder" visibility="0x02" properties="0x00">
      <documentation>The orthogonal feeder component.</documentation>
     </attribute>
@@ -270,15 +273,14 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
     <attribute name="mDailyPlanner {}" type="DailyPlanner&lt;std::chrono::seconds&gt;" visibility="0x02" properties="0x00">
      <documentation>A daily planner for feeding the beast.</documentation>
     </attribute>
-    <attribute name="mAlarmID {0}" type="unsigned int" visibility="0x02" properties="0x00">
-     <documentation>An index used to identify this alarm.</documentation>
-    </attribute>
     <operation name="Mgr" type="" visibility="0x00" properties="0x00">
      <specifiers>noexcept</specifiers>
      <documentation>Ctor.</documentation>
+     <parameter name="aAlarmID" type="const unsigned int"/>
      <parameter name="aMotorControl" type="std::unique_ptr&lt;Drivers::IMotorControl&gt;"/>
      <parameter name="aToTicksFct" type="const ToTicksFct&amp;"/>
      <code>    : QP::QActive{Q_STATE_CAST(&amp;PFPP::AO::Mgr::initial)}
+    , mAlarmID{aAlarmID}
     , mFeeder{this, std::move(aMotorControl)}
     , mFeederCfg{}
     , mToTicksFct{aToTicksFct}
@@ -289,28 +291,19 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
      <specifiers>const</specifiers>
      <documentation>Sets the next alarm according to entries in daily calendar.
 Cancels existing alarm if none available.</documentation>
-     <parameter name="aTime" type="const std::chrono::minutes"/>
-     <code>const auto lNextEntry {mDailyPlanner.GetNextEntry(aTime)};
-if (lNextEntry) {
-    auto lSetAlarmEvt {
-        Q_NEW(RTCC::Event::SetAlarm, RTCC_SET_ALARM_SIG)
-    };
+     <code>const auto lSetAlarmEvt {Q_NEW(RTCC::Event::SetAlarm, RTCC_SET_ALARM_SIG)};
+
+lSetAlarmEvt-&gt;mID = mAlarmID;
+lSetAlarmEvt-&gt;mIsSelfCleared = true;
+lSetAlarmEvt-&gt;mGetAlarmTimeFct = StaticGetNextAlarm;
+lSetAlarmEvt-&gt;mParam = this;
 
 #if Q_SPY
-    static const uint8_t sSetNextAlarm = 0U;
+static const uint8_t sSetNextAlarm = 0U;
 #endif
-    lSetAlarmEvt-&gt;mID = mAlarmID;
-    lSetAlarmEvt-&gt;mIsSelfCleared = true;
-    lSetAlarmEvt-&gt;mTime = aTime;
-    lSetAlarmEvt-&gt;mWeekday = std::chrono::weekday{};
-    lSetAlarmEvt-&gt;mCallback = nullptr;
-    lSetAlarmEvt-&gt;mParam = nullptr;
 
-    QP::QF::PUBLISH(lSetAlarmEvt, &amp;sSetNextAlarm);
-}
-else {
-    // Alarm is self cleared. Nothing to do.
-}</code>
+QP::QF::PUBLISH(lSetAlarmEvt, &amp;sSetNextAlarm);
+</code>
     </operation>
     <operation name="DispatchTimedFeedEvent" type="void" visibility="0x02" properties="0x00">
      <documentation>Creates and dispatches timed feed event to Feeder.</documentation>
@@ -338,6 +331,15 @@ lManualFeedEvt-&gt;mMaxFeedPeriod = mToTicksFct(mFeederCfg.mManualFeedMaxFeedPer
 uint_fast8_t sManualFeedButton_Handler {0U};
 mFeeder.dispatch(lManualFeedEvt, sManualFeedButton_Handler);
 </code>
+    </operation>
+    <operation name="StaticGetNextAlarm" type="std::optional&lt;std::chrono::seconds&gt;" visibility="0x02" properties="0x01">
+     <specifiers>noexcept</specifiers>
+     <documentation>Static wrapper function for using in events.</documentation>
+     <parameter name="aParam" type="void* const"/>
+     <parameter name="aTime" type="const std::chrono::seconds"/>
+     <code>const auto lThis {static_cast&lt;const PFPP::AO::Mgr*&gt;(aParam)};
+
+return lThis-&gt;mDailyPlanner.GetNextEntry(aTime);</code>
     </operation>
     <statechart properties="0x00">
      <documentation>mFeeder.dispatch(e, 0);</documentation>
@@ -404,15 +406,17 @@ QP::QF::stop();</action>
       <tran trig="FEEDER_TIMEOUT, FEEDER_MANUAL_FEED_CMD, FEEDER_TIMED_FEED_CMD">
        <action brief="Dispatch();">mFeeder.dispatch(e, 0);</action>
        <tran_glyph conn="4,38,3,-1,74">
-        <action box="0,-2,72,2"/>
+        <action box="0,-2,74,2"/>
        </tran_glyph>
       </tran>
       <tran trig="RTCC_ALARM">
        <action brief="Cast(e);">const auto lAlarmFiredEvt {static_cast&lt;const RTCC::Event::AlarmFired*&gt;(e)};</action>
        <choice>
         <guard brief="ID == MyID">lAlarmFiredEvt-&gt;mID == mAlarmID</guard>
-        <action brief="DispatchTimedFeedEvent(); SetNextAlarm();">DispatchTimedFeedEvent();
-SetNextAlarm(lAlarmFiredEvt-&gt;mTime);</action>
+        <action brief="DispatchTimedFeedEvent(); SetNextAlarm();">static_cast&lt;void&gt;(lAlarmFiredEvt);
+
+DispatchTimedFeedEvent();
+SetNextAlarm();</action>
         <choice_glyph conn="32,50,5,-1,46">
          <action box="1,-2,45,2"/>
         </choice_glyph>
@@ -423,14 +427,18 @@ SetNextAlarm(lAlarmFiredEvt-&gt;mTime);</action>
       </tran>
       <tran trig="BSP_SET_DAILY_FEED_TIME">
        <action brief="AddDailyEntry();">const auto lDailyEntryEvt {static_cast&lt;const BSP::Event::DailyTimeEntry*&gt;(e)};
-mDailyPlanner.AddEntry(lDailyEntryEvt-&gt;mTime);</action>
+mDailyPlanner.AddEntry(lDailyEntryEvt-&gt;mTime);
+// [MG] THIS DOESN'T FORCE A NEW ALARM, SINCE WE DON'T KNOW THE CURRENT TIME.
+</action>
        <tran_glyph conn="4,44,3,-1,74">
-        <action box="0,-2,36,2"/>
+        <action box="0,-2,74,2"/>
        </tran_glyph>
       </tran>
       <tran trig="RTCC_SET_TIME, RTCC_SET_TIME_AND_DATE">
        <action brief="SetNextAlarm();">const auto lTimeAndDateEvt {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
-SetNextAlarm(lTimeAndDateEvt-&gt;mTime);</action>
+static_cast&lt;void&gt;(lTimeAndDateEvt);
+
+SetNextAlarm();</action>
        <tran_glyph conn="4,56,3,-1,74">
         <action box="0,-2,74,2"/>
        </tran_glyph>

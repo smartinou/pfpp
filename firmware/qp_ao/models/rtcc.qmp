@@ -406,24 +406,18 @@ mAlarms.at(lAlarmEvt-&gt;mID).dispatch(e);</action>
    </attribute>
   </class>
   <class name="SetAlarm" superclass="qpcpp::QEvt">
-   <documentation>The base class for alarm events.</documentation>
+   <documentation>Sets the alarm with the help of a function to get the time.</documentation>
    <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
     <documentation>A unique identifier to associate with an alarm caller.</documentation>
    </attribute>
-   <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
-    <documentation>The time to set the alarm to.</documentation>
-   </attribute>
-   <attribute name="mWeekday" type="std::chrono::weekday" visibility="0x00" properties="0x00">
-    <documentation>The weekday to set the alarm to.</documentation>
-   </attribute>
-   <attribute name="mCallback" type="void*" visibility="0x00" properties="0x00">
-    <documentation>The function to callback when alarm has kicked.</documentation>
-   </attribute>
-   <attribute name="mParam" type="void*" visibility="0x00" properties="0x00">
-    <documentation>The parameter to pass to the callback function.</documentation>
-   </attribute>
    <attribute name="mIsSelfCleared" type="bool" visibility="0x00" properties="0x00">
     <documentation>Flag to set if the alarm should clear itself once triggered.</documentation>
+   </attribute>
+   <attribute name="mParam" type="const void*" visibility="0x00" properties="0x00">
+    <documentation>The parameter to pass to the function.</documentation>
+   </attribute>
+   <attribute name="(*mGetAlarmTimeFct)(void*, const std::chrono::seconds aTime)" type="std::optional&lt;std::chrono::seconds&gt;" visibility="0x00" properties="0x00">
+    <documentation>The helper function to determine the alarm time.</documentation>
    </attribute>
   </class>
   <class name="SaveToRAM? 0" superclass="qpcpp::QEvt">
