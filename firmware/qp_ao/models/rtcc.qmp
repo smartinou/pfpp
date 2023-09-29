@@ -91,7 +91,7 @@ Uses signals from an RTCC component to maintain date and time.
 
 Can perform various other tasks like saving to Non-Volatile memory and read temperature (if so equipped).
 </documentation>
-   <attribute name="mTime {}" type="std::chrono::minutes" visibility="0x02" properties="0x00">
+   <attribute name="mTime {}" type="std::chrono::seconds" visibility="0x02" properties="0x00">
     <documentation>Holder for RTCC time.
 </documentation>
    </attribute>
@@ -99,37 +99,17 @@ Can perform various other tasks like saving to Non-Volatile memory and read temp
     <documentation>Holder for RTCC date.
 </documentation>
    </attribute>
-   <attribute name="mTemperature {-1000.0}" type="float" visibility="0x02" properties="0x00">
-    <documentation>Holder for RTCC temperature.
-</documentation>
-   </attribute>
-   <attribute name="mRTCC {}" type="std::shared_ptr&lt;IRTCC&gt;" visibility="0x02" properties="0x00">
+   <attribute name="mRTCC {}" type="std::unique_ptr&lt;Drivers::IRTCC&gt;" visibility="0x02" properties="0x00">
     <documentation>Reference to a IRTCC-compatible interface.
 </documentation>
    </attribute>
-   <attribute name="mITemperature {}? 0" type="std::shared_ptr&lt;ITemperature&gt;" visibility="0x02" properties="0x00">
-    <documentation>Reference to a ITemperature-compatible interface.</documentation>
-   </attribute>
-   <attribute name="mNVMem {}? 0" type="std::shared_ptr&lt;INVMem&gt;" visibility="0x02" properties="0x00">
-    <documentation>Reference to object implementing INVMem interface.</documentation>
-   </attribute>
-   <attribute name="mCalendarRec {}? 0" type="std::shared_ptr&lt;CalendarRec&gt;" visibility="0x02" properties="0x00">
-    <documentation>Pointer to CalendarRec object.
-</documentation>
-   </attribute>
-   <attribute name="mNVMemBuf {}? 0" type="std::unique_ptr&lt;uint8_t []&gt;" visibility="0x02" properties="0x00">
-    <documentation>Pointer to the non-volatile memory buffer.</documentation>
-   </attribute>
-   <attribute name="mAlarms" type="std::vector&lt;RTCC::HSM::Alarm&gt;" visibility="0x00" properties="0x00">
+   <attribute name="mAlarms? 0" type="std::vector&lt;RTCC::HSM::Alarm&gt;" visibility="0x00" properties="0x00">
     <documentation>An array holding the holding the orthogonal HSM Alarm componnents.</documentation>
    </attribute>
    <operation name="Mgr" type="" visibility="0x00" properties="0x00">
     <documentation>Ctor.
 </documentation>
-    <parameter name="aRTCC" type="std::shared_ptr&lt;IRTCC&gt;"/>
-    <parameter name="aTemperature" type="std::shared_ptr&lt;ITemperature&gt;"/>
-    <parameter name="aNVMem" type="std::shared_ptr&lt;INVMem&gt;"/>
-    <parameter name="aCalendarRec" type="std::shared_ptr&lt;CalendarRec&gt;"/>
+    <parameter name="aRTCC" type="std::unique_ptr&lt;Drivers::IRTCC&gt;"/>
     <code>    : QP::QActive(Q_STATE_CAST(&amp;RTCC::AO::Mgr::initial))
     , mRTCC{std::move(aRTCC)}
     //, mITemperature{std::move(aTemperature)}
@@ -138,110 +118,22 @@ Can perform various other tasks like saving to Non-Volatile memory and read temp
 
 // Ctor body left empty.</code>
    </operation>
-   <operation name="GetTemperature? 0" type="float" visibility="0x00" properties="0x02">
-    <specifiers>const</specifiers>
-    <documentation>Returns the last snapshot of temperature if available.
-If not returns 0.0.
-</documentation>
-    <code>return mTemperature;</code>
+   <operation name="SetAlarm" type="void" visibility="0x02" properties="0x00">
+    <documentation>Sets an alarm from an event.</documentation>
    </operation>
-   <operation name="GetTime? 0" type="std::chrono::minutes const &amp;" visibility="0x00" properties="0x02">
-    <specifiers>const</specifiers>
-    <documentation>Returns the last snapshot of Time readout.
-</documentation>
-    <code>return mTime;</code>
+   <operation name="StaticProcessAlarm" type="bool" visibility="0x02" properties="0x01">
+    <specifiers>noexcept</specifiers>
+    <documentation>Function to elevate to process all internal alarms.</documentation>
+    <parameter name="aParam" type="void* const"/>
+    <parameter name="aAlarm" type="const Drivers::Alarm&amp;"/>
+    <code>const auto lThis {static_cast&lt;const Drivers::Alarm*&gt;(aParam)};
+
+return lThis-&gt;ProcessAlarm();</code>
    </operation>
-   <operation name="GetDate" type="std::chrono::year_month_day? 0" visibility="0x00" properties="0x02">
-    <specifiers>const</specifiers>
-    <documentation>Returns the last snapshot of Date readout.
-</documentation>
-    <code>return mDate;</code>
-   </operation>
-   <operation name="InitDB? 0" type="void" visibility="0x02" properties="0x00">
-    <documentation>Initializes the DB, from NV memory if available, or to default if not.</documentation>
-    <code>if (auto const lNVMemSize{mNVMem-&gt;GetNVMemSize()}; lNVMemSize) {
-    mNVMemBuf = std::make_unique&lt;uint8_t []&gt;(lNVMemSize);
-    auto const lDBSize = DBRec::GetDBSize();
-    mNVMem-&gt;RdFromNVMem(mNVMemBuf.get(), 0, lDBSize);
-    DBRec::DeserializeDB(mNVMemBuf.get());
-    if (!DBRec::IsDBSane()) {
-        // Reset defaults and write back to NV mem.
-        DBRec::ResetDBDflt();
-        WrToNVMem();
-    }
-} else {
-    DBRec::ResetDBDflt();
-}
-</code>
-   </operation>
-   <operation name="InitCalendar? 0" type="void" visibility="0x02" properties="0x00">
-    <documentation>Initializes the calendar record.</documentation>
-    <code>// -Get current time &amp; date, temperature.
-// -Read config from RTCC sram.
-// -Populate calendar.
-// -Set next alarm.
-mRTCC-&gt;RdTimeAndDate(mTime, mDate);
-mTemperature = mITemperature-&gt;GetTemperature();
-
-// Set some defaults if required.
-if (!mCalendarRec-&gt;IsSane()) {
-    mCalendarRec-&gt;ResetDflt();
-}
-
-// Check if a Calendar object was passed.
-// If not, create one locally,
-#ifdef RTCC_CALENDAR_DBG
-mCalendarRec-&gt;ClrAllEntries();
-#endif // RTCC_CALENDAR_DBG
-
-SetNextCalendarEvent();
-
-// If you haven't passed a Calendar record,
-// no alarms will be set.
-</code>
-   </operation>
-   <operation name="WrToNVMem? 0" type="void" visibility="0x02" properties="0x00">
-    <documentation>Write buffer to NV memory.</documentation>
-    <code>if (DBRec::IsDBDirty()) {
-    auto const lDBSize{DBRec::GetDBSize()};
-    DBRec::StaticUpdateCRC();
-    DBRec::SerializeDB(mNVMemBuf.get());
-    mNVMem-&gt;WrToNVMem(mNVMemBuf.get(), 0, lDBSize);
-}
-</code>
-   </operation>
-   <operation name="SetNextCalendarEvent? 0" type="void" visibility="0x02" properties="0x00">
-    <code>Weekday lCurrentWeekday{mDate.GetWeekdayName()};
-
-#ifdef RTCC_CALENDAR_DBG
-lAlarmTime = mTime;
-unsigned int lMinutes = mTime.GetMinutes() + 15;
-unsigned int lHours   = mTime.GetHours();
-if (lMinutes &gt;= 60) {
-    lMinutes %= 60;
-    lHours++;
-    if (lHours &gt;= 24) {
-        lHours = 0;
-    }
-}
-lAlarmTime.SetMinutes(lMinutes);
-lAlarmTime.SetHours(lHours);
-mCalendarPtr-&gt;SetEntry(lCurrentWeekday, lAlarmTime);
-#endif // RTCC_CALENDAR_DBG
-
-auto const lNextEntry{
-    mCalendarRec-&gt;GetNextEntry(lCurrentWeekday, mTime)
-};
-
-if (lNextEntry) {
-    // Entry found: set alarm.
-    mRTCC-&gt;WrAlarm(lNextEntry.value().first, lNextEntry.value().second);
-} else {
-    // No next entry found:
-    // clear current alarm so it does not generate an interrupt anymore.
-    mRTCC-&gt;DisableAlarm();
-}
-</code>
+   <operation name="ProcessAlarm" type="bool" visibility="0x02" properties="0x00">
+    <documentation>Process a single alarm entry.</documentation>
+    <parameter name="aAlarm" type="const Drivers::Alarm&amp;"/>
+    <code>static_cast&lt;void&gt;(aAlarm);</code>
    </operation>
    <statechart properties="0x02">
     <initial target="../1">
@@ -281,8 +173,6 @@ subscrube(RTCC_SET_TIME_ALARM_SIG);
 const auto lSetTimeEvent {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
 mRTCC-&gt;WrTime(lSetTimeEvent-&gt;mTime);
 //mRTCC-&gt;GetTimeAndDate(mTime, mDate);
-
-//SetNextCalendarEvent();
 </action>
       <tran_glyph conn="4,20,3,-1,46">
        <action box="0,-2,36,2"/>
@@ -293,19 +183,18 @@ mRTCC-&gt;WrTime(lSetTimeEvent-&gt;mTime);
 const auto lSetEventDate {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
 mRTCC-&gt;WrDate(lSetEventDate-&gt;mDate);
 //mRTCC-&gt;GetTimeAndDate(mTime, mDate);
-
-//SetNextCalendarEvent();
 </action>
       <tran_glyph conn="4,24,3,-1,46">
        <action box="0,-2,36,2"/>
       </tran_glyph>
      </tran>
      <tran trig="RTCC_INTERRUPT">
-      <action brief="ReadTimeAndDate(); ^RTCC_TICK">// Set data as impure to force refresh of data read from RTCC.
-mRTCC-&gt;SetImpure();
+      <action brief="ReadTimeAndDate(); ProcessAlarms();">// Set data as impure to force refresh of data read from RTCC.
+mRTCC-&gt;ISR();
+//mRTCC-&gt;SetImpure();
 mRTCC-&gt;GetTimeAndDate(mTime, mDate);
 //mTemperature = mITemperature-&gt;GetTemperature();
-
+#if 0
 // Publish Tick Alarm Event.
 const auto lTimeandDataEvent {
     Q_NEW(
@@ -319,31 +208,14 @@ QP::QF::PUBLISH(lTimeandDataEvent, this);
 
 const bool lIsCalendarAlarm {mRTCC-&gt;IsAlarmOn()};
 mRTCC-&gt;AckInterrupt();
-</action>
-      <choice>
-       <action brief="DoNothing();">#if 0
-// Got a calendar event alarm: create event.
-// Set next calendar alarm event.
-//LOG_INFO(&amp;sLogCategory[0], &quot;Calendar event.&quot;);
-// Check the alarm that triggered and its context (callback + param).
-const auto lCalendarEvent {
-    Q_NEW(
-        RTCC::Event::Alarm,
-        RTCC_ALARM_SIG,
-        mTime,
-        mDate,
-        nullptr,
-        nullptr
-    )
+#else
+
+const auto lResult {
+    mRTCC-&gt;ProcessAlarms(StaticProcessAlarm, this)
 };
-QP::QF::PUBLISH(lCalendarEvent, this);
+
 #endif
-//SetNextCalendarEvent();
 </action>
-       <choice_glyph conn="50,40,5,-1,22">
-        <action box="1,0,28,4"/>
-       </choice_glyph>
-      </choice>
       <tran_glyph conn="4,40,3,-1,46">
        <action box="0,-2,44,2"/>
       </tran_glyph>
@@ -352,24 +224,46 @@ QP::QF::PUBLISH(lCalendarEvent, this);
       <action brief="SetTimeAndDate(aTime, aDate)">const auto lSetTimeEvent {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
 mRTCC-&gt;WrTimeAndDate(lSetTimeEvent-&gt;mTime, lSetTimeEvent-&gt;mDate);
 //mRTCC-&gt;GetTimeAndDate(mTime, mDate);
-
-//SetNextCalendarEvent();
 </action>
       <tran_glyph conn="4,28,3,-1,46">
        <action box="0,-2,46,2"/>
       </tran_glyph>
      </tran>
-     <tran trig="RTCC_SET_ONE_SHOT_ALARM, RTCC_PERIODIC_ALARM">
-      <action brief="Dispatch();">const auto lAlarmEvt {static_cast&lt;RTCC::Event::AlarmBase&gt;(e)};
-mAlarms.at(lAlarmEvt-&gt;mID).dispatch(e);</action>
-      <tran_glyph conn="4,32,3,-1,68">
-       <action box="0,-2,60,2"/>
+     <tran trig="RTCC_SET_ALARM">
+      <action brief="SetAlarm();">const auto lAlarmTimeEvt {static_cast&lt;const RTCC::Event::AlarmTime*&gt;(e)};
+
+const auto lNextAlarmTime {
+    lAlarmTimeEvt-&gt;mGetAlarmTimeFct(lAlarmTimeEvt-&gt;mParam, mTime);
+};
+
+if (!lNextAlarmTime) {
+    return;
+}
+
+// Store the ID.
+
+switch (lAlarmTimeEvt-&gt;mRate) {
+case eAlarmRate::OncePerSecond:
+
+case eAlarmRate::SecondsMatch:
+
+case eAlarmRate::MinutesSecondsMatch:
+
+case eAlarmRate::HoursMinutesSecondsMatch:
+
+case eAlarmRate::DateHoursMinutesSecondsMatch:
+
+case eAlarmRate::DayHoursMinutesSecondsMatch:
+
+}</action>
+      <tran_glyph conn="4,32,3,-1,46">
+       <action box="0,-2,46,2"/>
       </tran_glyph>
      </tran>
-     <tran trig="ALARM_CLEAR">
-      <action brief="Clear();"/>
+     <tran trig="RTCC_CLEAR_ALARM">
+      <action brief="ClearAlarm();"/>
       <tran_glyph conn="4,36,3,-1,46">
-       <action box="0,-2,40,2"/>
+       <action box="0,-2,46,2"/>
       </tran_glyph>
      </tran>
      <state_glyph node="4,10,72,42">
@@ -432,41 +326,21 @@ mAlarms.at(lAlarmEvt-&gt;mID).dispatch(e);</action>
     <documentation>The time at which the alarm was fired.</documentation>
    </attribute>
   </class>
-  <class name="SaveToRAM? 0" superclass="qpcpp::QEvt">
-   <documentation>Signals the RTCC's RAM is to be saved.</documentation>
-   <attribute name="mIsDataImpure" type="bool const" visibility="0x00" properties="0x00">
-    <documentation>Data is impure, ready to be saved again.</documentation>
-   </attribute>
-   <operation name="SaveToRAM" type="explicit" visibility="0x00" properties="0x02">
-    <specifiers>noexcept</specifiers>
-    <documentation>Ctor.</documentation>
-    <parameter name="aSignal" type="QP::QSignal const"/>
-    <parameter name="aIsDataImpure" type="bool const"/>
-    <code>    : QP::QEvt(aSignal)
-    , mIsDataImpure(aIsDataImpure)
-// Ctor left empty.</code>
-   </operation>
-   <operation name="SaveToRAM" type="explicit constexpr" visibility="0x00" properties="0x02">
-    <specifiers>noexcept</specifiers>
-    <documentation>Ctor (overload for static events).
-
-Pass QP::QEvt::StaticEvt::STATIC_EVT for aStatic parameter.</documentation>
-    <parameter name="aSignal" type="QP::QSignal const"/>
-    <parameter name="aIsDataImpure" type="bool const"/>
-    <parameter name="aStaticEvtFlag" type="QP::QEvt::StaticEvt const"/>
-    <code>    : QP::QEvt(aSignal, aStaticEvtFlag)
-    , mIsDataImpure(aIsDataImpure)
-// Ctor left empty.</code>
-   </operation>
-  </class>
  </package>
  <directory name="../codegen">
   <file name="RTCC_Events.h">
    <text>#ifndef RTCC__EVENTS_H_
 #define RTCC__EVENTS_H_
 
+// Standard Library.
+#include &lt;chrono&gt;
+#include &lt;optional&gt;
+
 // QP.
 #include &lt;qpcpp.hpp&gt;
+
+// Drivers.
+#include &quot;drivers/inc/IRTCC.h&quot;
 
 
 enum class eAlarmRate
@@ -492,31 +366,38 @@ $declare${RTCC::Events::AlarmFired}
 </text>
   </file>
   <file name="RTCC_AOs.h">
-   <text>#include &quot;qpcpp.h&quot;
+   <text>#ifndef RTCC__AOS_MGR_H_
+#define RTCC__AOS_MGR_H_
 
+// QP.
+#include &lt;qpcpp.hpp&gt;
+
+// Standard libraries.
+#include &lt;chrono&gt;
 #include &lt;memory&gt;
 
-// Forward declaration.
-class IRTCC;
-class INVMem;
-class ITemperature;
-class CalendarRec;
+// Firmware.
+#include &quot;drivers/inc/IRTCC.h&quot;
 
-$declare${RTCC::AOs::RTCC_AO}
+
+$declare${RTCC::AOs::Mgr}
+
+#endif // RTCC__AOS_MGR_H_
 </text>
   </file>
   <file name="RTCC_AOs.cpp">
-   <text>#include &lt;cstring&gt;
-#include &lt;db/CalendarRec.h&gt;
-#include &quot;IRTCC.h&quot;
-#include &quot;INVMem.h&quot;
-#include &quot;ITemperature.h&quot;
+   <text>// This project.
+#include &quot;qp_ao/codegen/RTCC_AOs.h&quot;
+#include &quot;qp_ao/codegen/RTCC_Events.h&quot;
+#include &quot;qp_ao/codegen/Signals.h&quot;
 
-#include &quot;Signals.h&quot;
-#include &quot;RTCC_Events.h&quot;
-#include &quot;RTCC_AOs.h&quot;
+#include &quot;qp_ao/codegen/RTCC_Events.h&quot;
 
-$define${RTCC::AOs::RTCC_AO}
+// Drivers.
+#include &quot;drivers/inc/IMotorControl.h&quot;
+
+
+$define${RTCC::AOs::Mgr}
 </text>
   </file>
  </directory>

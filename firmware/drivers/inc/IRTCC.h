@@ -1,5 +1,5 @@
-#ifndef DRIVERS_IRTCC_H_
-#define DRIVERS_IRTCC_H_
+#ifndef DRIVERS__IRTCC_H_
+#define DRIVERS__IRTCC_H_
 // *******************************************************************************
 //
 // Project: Drivers.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -36,20 +36,56 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
+namespace Drivers
+{
+
+
+using tTime = std::chrono::seconds;
+using tDate = std::chrono::year_month_day;
+using tWeekday = std::chrono::weekday;
+
+class Alarm final
+{
+public:
+    enum class eRate
+    {
+        OncePerSecond,
+        SecondsMatch,
+        MinutesSecondMatch,
+        HoursMinutesSecondsMatch,
+        DateHoursMinutesSecondsMatch,
+        DayHoursMinutesSecondsMatch,
+        OncePerMinute,
+        MinutesMatch,
+        HoursMinutesMatch,
+        DateHoursMinutesMatch,
+        DayHoursMinutesMatch
+    };
+
+    using ProcessAlarmFct = bool (*)(void*, Alarm*);
+
+    void SetAlarm(tTime aTime, tDate aDate, Alarm::eRate aPeriod);
+    void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod);
+    void ClearAlarm();
+    bool ProcessAlarm();
+
+private:
+    unsigned int mID;
+    eRate mRate;
+};
+
+
 //! \brief RTCC interface.
-class IRTCC {
+class IRTCC
+{
 public:
     virtual ~IRTCC() = default;
 
-    using tTime = std::chrono::hh_mm_ss<std::chrono::seconds>;
-    //using tTime = std::chrono::seconds;
-    using tDate = std::chrono::year_month_day;
-    using tWeekday = std::chrono::weekday;
-    struct Entry_s {
+    struct tTimeAndDate
+    {
         tTime mTime{};
         tDate mDate{};
     };
-    using tTimeAndDate = struct Entry_s;
 
     virtual void Init() = 0;
     virtual void SetInterrupt(bool aEnable) = 0;
@@ -57,14 +93,18 @@ public:
 
     virtual auto RdTimeAndDate() const -> tTimeAndDate = 0;
 
-    virtual void WrTime(tTime const &aTime) = 0;
-    virtual void WrDate(tDate const &aDate) = 0;
-    virtual void WrTimeAndDate(tTime const &aTime, tDate const &aDate) = 0;
+    virtual void WrTime(tTime aTime) = 0;
+    virtual void WrDate(tDate aDate) = 0;
+    virtual void WrTimeAndDate(tTime aTime, tDate aDate) = 0;
 
-    virtual void WrAlarm(tTime const &aTime, tDate const &aDate) = 0;
-    virtual void WrAlarm(tTime const &aTime, tWeekday const &aWeekday) = 0;
-    virtual void DisableAlarm() = 0;
+    virtual void SetAlarm(tTime aTime, tDate aDate, Alarm::eRate aPeriod, unsigned int aAlarmID) = 0;
+    virtual void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod, unsigned int aAlarmID) = 0;
+    virtual void ClearAlarm(unsigned int aAlarmID) = 0;
+    virtual bool ProcessAlarms(const Alarm::ProcessAlarmFct& aFct, void* aParam) = 0;
 };
+
+
+} // namespace Drivers
 
 // ******************************************************************************
 //                            EXPORTED VARIABLES
@@ -81,4 +121,4 @@ public:
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // DRIVERS_IRTCC_H_
+#endif // DRIVERS__IRTCC_H_

@@ -287,7 +287,7 @@ Has a time limit to avoid over-feeding and emptying the feeder.</documentation>
 
 // Ctor body.</code>
     </operation>
-    <operation name="SetNextAlarm" type="void" visibility="0x02" properties="0x02">
+    <operation name="SetNextAlarm" type="void" visibility="0x02" properties="0x00">
      <specifiers>const</specifiers>
      <documentation>Sets the next alarm according to entries in daily calendar.
 Cancels existing alarm if none available.</documentation>
@@ -295,7 +295,7 @@ Cancels existing alarm if none available.</documentation>
 
 lAlarmTimeEvt-&gt;mID = mAlarmID;
 lAlarmTimeEvt-&gt;mIsSelfCleared = true;
-lAlarmTimeEvt-&gt;mAlarmRate = eAlarmRate::HoursMinutesMatch;
+//lAlarmTimeEvt-&gt;mAlarmRate = eAlarmRate::HoursMinutesMatch;
 lAlarmTimeEvt-&gt;mGetAlarmTimeFct = StaticGetNextAlarm;
 lAlarmTimeEvt-&gt;mParam = this;
 
