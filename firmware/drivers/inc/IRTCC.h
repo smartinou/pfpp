@@ -39,10 +39,13 @@
 namespace Drivers
 {
 
-
+//namespace RTCCDefs
+//{
 using tTime = std::chrono::seconds;
 using tDate = std::chrono::year_month_day;
 using tWeekday = std::chrono::weekday;
+//} // namespace RTCCDefs
+
 
 class Alarm final
 {
@@ -62,7 +65,7 @@ public:
         DayHoursMinutesMatch
     };
 
-    using ProcessAlarmFct = bool (*)(void*, Alarm*);
+    using ProcessAlarmFct = bool (&)(void*, const Alarm&);
 
     void SetAlarm(tTime aTime, tDate aDate, Alarm::eRate aPeriod);
     void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod);
@@ -91,7 +94,7 @@ public:
     virtual void SetInterrupt(bool aEnable) = 0;
     virtual bool ISR() = 0;
 
-    virtual auto RdTimeAndDate() const -> tTimeAndDate = 0;
+    virtual auto GetTimeAndDate() const -> tTimeAndDate = 0;
 
     virtual void WrTime(tTime aTime) = 0;
     virtual void WrDate(tDate aDate) = 0;
@@ -100,7 +103,7 @@ public:
     virtual void SetAlarm(tTime aTime, tDate aDate, Alarm::eRate aPeriod, unsigned int aAlarmID) = 0;
     virtual void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod, unsigned int aAlarmID) = 0;
     virtual void ClearAlarm(unsigned int aAlarmID) = 0;
-    virtual bool ProcessAlarms(const Alarm::ProcessAlarmFct& aFct, void* aParam) = 0;
+    virtual bool ProcessAlarms(Alarm::ProcessAlarmFct& aOnAlarmFiredFct, void* aParam) = 0;
 };
 
 

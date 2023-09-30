@@ -121,19 +121,16 @@ Can perform various other tasks like saving to Non-Volatile memory and read temp
    <operation name="SetAlarm" type="void" visibility="0x02" properties="0x00">
     <documentation>Sets an alarm from an event.</documentation>
    </operation>
-   <operation name="StaticProcessAlarm" type="bool" visibility="0x02" properties="0x01">
+   <operation name="StaticOnAlarmFired" type="bool" visibility="0x02" properties="0x01">
     <specifiers>noexcept</specifiers>
     <documentation>Function to elevate to process all internal alarms.</documentation>
     <parameter name="aParam" type="void* const"/>
     <parameter name="aAlarm" type="const Drivers::Alarm&amp;"/>
-    <code>const auto lThis {static_cast&lt;const Drivers::Alarm*&gt;(aParam)};
+    <code>[[maybe_unused]] const auto lThis {static_cast&lt;const RTCC::AO::Mgr*&gt;(aParam)};
 
-return lThis-&gt;ProcessAlarm();</code>
-   </operation>
-   <operation name="ProcessAlarm" type="bool" visibility="0x02" properties="0x00">
-    <documentation>Process a single alarm entry.</documentation>
-    <parameter name="aAlarm" type="const Drivers::Alarm&amp;"/>
-    <code>static_cast&lt;void&gt;(aAlarm);</code>
+// With Alarm, prepare events and publish them.
+static_cast&lt;void&gt;(aAlarm);
+return true;</code>
    </operation>
    <statechart properties="0x02">
     <initial target="../1">
@@ -146,7 +143,7 @@ subscribe(RTCC_SET_DATE_SIG);
 subscribe(RTCC_SET_TIME_SIG);
 subscribe(RTCC_SET_TIME_AND_DATE_SIG);
 //subscribe(RTCC_SAVE_TO_NV_MEMORY_SIG);
-subscrube(RTCC_SET_TIME_ALARM_SIG);
+subscribe(RTCC_SET_ALARM_SIG);
 
 // Init database and calendar.
 //InitDB();
@@ -191,9 +188,8 @@ mRTCC-&gt;WrDate(lSetEventDate-&gt;mDate);
      <tran trig="RTCC_INTERRUPT">
       <action brief="ReadTimeAndDate(); ProcessAlarms();">// Set data as impure to force refresh of data read from RTCC.
 mRTCC-&gt;ISR();
-//mRTCC-&gt;SetImpure();
-mRTCC-&gt;GetTimeAndDate(mTime, mDate);
-//mTemperature = mITemperature-&gt;GetTemperature();
+[[maybe_unused]] const auto [lTime, lDate] = mRTCC-&gt;GetTimeAndDate();
+
 #if 0
 // Publish Tick Alarm Event.
 const auto lTimeandDataEvent {
@@ -206,13 +202,15 @@ const auto lTimeandDataEvent {
 };
 QP::QF::PUBLISH(lTimeandDataEvent, this);
 
-const bool lIsCalendarAlarm {mRTCC-&gt;IsAlarmOn()};
 mRTCC-&gt;AckInterrupt();
 #else
 
-const auto lResult {
-    mRTCC-&gt;ProcessAlarms(StaticProcessAlarm, this)
+
+// Ask RTCC to process *ALL* alarms it is ownoing.
+[[maybe_unused]] const auto lResult {
+    mRTCC-&gt;ProcessAlarms(StaticOnAlarmFired, this)
 };
+
 
 #endif
 </action>
@@ -230,32 +228,20 @@ mRTCC-&gt;WrTimeAndDate(lSetTimeEvent-&gt;mTime, lSetTimeEvent-&gt;mDate);
       </tran_glyph>
      </tran>
      <tran trig="RTCC_SET_ALARM">
-      <action brief="SetAlarm();">const auto lAlarmTimeEvt {static_cast&lt;const RTCC::Event::AlarmTime*&gt;(e)};
+      <action brief="SetAlarm();">#if 0
+const auto lAlarmTimeEvt {static_cast&lt;const RTCC::Event::AlarmTime*&gt;(e)};
 
 const auto lNextAlarmTime {
     lAlarmTimeEvt-&gt;mGetAlarmTimeFct(lAlarmTimeEvt-&gt;mParam, mTime);
 };
 
 if (!lNextAlarmTime) {
-    return;
+    //return;
 }
 
 // Store the ID.
 
-switch (lAlarmTimeEvt-&gt;mRate) {
-case eAlarmRate::OncePerSecond:
-
-case eAlarmRate::SecondsMatch:
-
-case eAlarmRate::MinutesSecondsMatch:
-
-case eAlarmRate::HoursMinutesSecondsMatch:
-
-case eAlarmRate::DateHoursMinutesSecondsMatch:
-
-case eAlarmRate::DayHoursMinutesSecondsMatch:
-
-}</action>
+#endif</action>
       <tran_glyph conn="4,32,3,-1,46">
        <action box="0,-2,46,2"/>
       </tran_glyph>
@@ -304,7 +290,7 @@ case eAlarmRate::DayHoursMinutesSecondsMatch:
    <attribute name="mID" type="unsigned int" visibility="0x00" properties="0x00">
     <documentation>A unique identifier to associate with an alarm caller.</documentation>
    </attribute>
-   <attribute name="mRate" type="eAlarmRate" visibility="0x00" properties="0x00">
+   <attribute name="mRate" type="Drivers::Alarm::eRate" visibility="0x00" properties="0x00">
     <documentation>The period of the alarm to set.</documentation>
    </attribute>
    <attribute name="mIsSelfCleared" type="bool" visibility="0x00" properties="0x00">
@@ -342,21 +328,6 @@ case eAlarmRate::DayHoursMinutesSecondsMatch:
 // Drivers.
 #include &quot;drivers/inc/IRTCC.h&quot;
 
-
-enum class eAlarmRate
-{
-    OncePerSecond,
-    SecondsMatch,
-    MinutesSecondMatch,
-    HoursMinutesSecondsMatch,
-    DateHoursMinutesSecondsMatch,
-    DayHoursMinutesSecondsMatch,
-    OncePerMinute,
-    MinutesMatch,
-    HoursMinutesMatch,
-    DateHoursMinutesMatch,
-    DayHoursMinutesMatch
-};
 
 $declare${RTCC::Events::TimeAndDate}
 $declare${RTCC::Events::AlarmTime}
