@@ -39,12 +39,10 @@
 namespace Drivers
 {
 
-//namespace RTCCDefs
-//{
+
 using tTime = std::chrono::seconds;
 using tDate = std::chrono::year_month_day;
 using tWeekday = std::chrono::weekday;
-//} // namespace RTCCDefs
 
 
 class Alarm final
@@ -54,7 +52,7 @@ public:
     {
         OncePerSecond,
         SecondsMatch,
-        MinutesSecondMatch,
+        MinutesSecondsMatch,
         HoursMinutesSecondsMatch,
         DateHoursMinutesSecondsMatch,
         DayHoursMinutesSecondsMatch,
@@ -96,9 +94,9 @@ public:
 
     virtual auto GetTimeAndDate() const -> tTimeAndDate = 0;
 
-    virtual void WrTime(tTime aTime) = 0;
-    virtual void WrDate(tDate aDate) = 0;
-    virtual void WrTimeAndDate(tTime aTime, tDate aDate) = 0;
+    virtual void SetTime(tTime aTime) = 0;
+    virtual void SetDate(tDate aDate) = 0;
+    virtual void SetTimeAndDate(tTime aTime, tDate aDate) = 0;
 
     virtual void SetAlarm(tTime aTime, tDate aDate, Alarm::eRate aPeriod, unsigned int aAlarmID) = 0;
     virtual void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod, unsigned int aAlarmID) = 0;

@@ -168,8 +168,7 @@ subscribe(RTCC_SET_ALARM_SIG);
      <tran trig="RTCC_SET_TIME">
       <action brief="SetTime(aTime);">//LOG_INFO(&amp;sLogCategory[0], &quot;New time set.&quot;);
 const auto lSetTimeEvent {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
-mRTCC-&gt;WrTime(lSetTimeEvent-&gt;mTime);
-//mRTCC-&gt;GetTimeAndDate(mTime, mDate);
+mRTCC-&gt;SetTime(lSetTimeEvent-&gt;mTime);
 </action>
       <tran_glyph conn="4,20,3,-1,46">
        <action box="0,-2,36,2"/>
@@ -178,8 +177,7 @@ mRTCC-&gt;WrTime(lSetTimeEvent-&gt;mTime);
      <tran trig="RTCC_SET_DATE">
       <action brief="SetDate(aDate);">//LOG_INFO(&amp;sLogCategory[0], &quot;New date set.&quot;);
 const auto lSetEventDate {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
-mRTCC-&gt;WrDate(lSetEventDate-&gt;mDate);
-//mRTCC-&gt;GetTimeAndDate(mTime, mDate);
+mRTCC-&gt;SetDate(lSetEventDate-&gt;mDate);
 </action>
       <tran_glyph conn="4,24,3,-1,46">
        <action box="0,-2,36,2"/>
@@ -220,8 +218,7 @@ mRTCC-&gt;AckInterrupt();
      </tran>
      <tran trig="RTCC_SET_TIME_AND_DATE">
       <action brief="SetTimeAndDate(aTime, aDate)">const auto lSetTimeEvent {static_cast&lt;const RTCC::Event::TimeAndDate*&gt;(e)};
-mRTCC-&gt;WrTimeAndDate(lSetTimeEvent-&gt;mTime, lSetTimeEvent-&gt;mDate);
-//mRTCC-&gt;GetTimeAndDate(mTime, mDate);
+mRTCC-&gt;SetTimeAndDate(lSetTimeEvent-&gt;mTime, lSetTimeEvent-&gt;mDate);
 </action>
       <tran_glyph conn="4,28,3,-1,46">
        <action box="0,-2,46,2"/>
@@ -262,20 +259,6 @@ if (!lNextAlarmTime) {
   </class>
  </package>
  <package name="Events" stereotype="0x01" namespace="Event::">
-  <class name="Init? 0" superclass="qpcpp::QEvt">
-   <documentation>Event for the pseudo-init event.</documentation>
-   <attribute name="mCalendarRec" type="const std::shared_ptr&lt;CalendarRec&gt;" visibility="0x00" properties="0x00">
-    <documentation>Pointer to calendar record.</documentation>
-   </attribute>
-   <operation name="Init" type="" visibility="0x00" properties="0x02">
-    <documentation>Ctor.</documentation>
-    <parameter name="aSignal" type="QP::QSignal const"/>
-    <parameter name="aCalendarRec" type="const std::shared_ptr&lt;CalendarRec&gt; &amp;"/>
-    <code>    : QP::QEvt(aSignal)
-    , mCalendarRec(aCalendarRec)
-// Ctor left empty.</code>
-   </operation>
-  </class>
   <class name="TimeAndDate" superclass="qpcpp::QEvt">
    <documentation>Event to propagate a new Time and Date.</documentation>
    <attribute name="mTime" type="std::chrono::minutes" visibility="0x00" properties="0x00">
