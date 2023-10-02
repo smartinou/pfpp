@@ -1,5 +1,5 @@
-#ifndef DRIVERS_INVMEMDEV_H_
-#define DRIVERS_INVMEMDEV_H_
+#ifndef DRIVERS__INVMEMDEV_H_
+#define DRIVERS__INVMEMDEV_H_
 // *******************************************************************************
 //
 // Project: Drivers.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -37,8 +37,13 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
+namespace Drivers
+{
+
+
 //! \brief Non-Volatile Memory interface.
-class INVMem {
+class INVMem
+{
 public:
     virtual ~INVMem() = default;
 
@@ -48,10 +53,13 @@ public:
         std::size_t aOffset
     ) = 0;
     virtual void WrToNVMem(
-        std::span<std::byte const> aData,
+        std::span<const std::byte> aData,
         std::size_t aOffset
     ) = 0;
 };
+
+
+} // namespace Drivers
 
 // ******************************************************************************
 //                            EXPORTED VARIABLES
@@ -68,4 +76,4 @@ public:
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // DRIVERS_INVMEMDEV_H_
+#endif // DRIVERS__INVMEMDEV_H_

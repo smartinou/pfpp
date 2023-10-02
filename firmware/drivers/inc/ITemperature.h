@@ -1,5 +1,5 @@
-#ifndef DRIVERS_ITEMPERATURE_H_
-#define DRIVERS_ITEMPERATURE_H_
+#ifndef DRIVERS__ITEMPERATURE_H_
+#define DRIVERS__ITEMPERATURE_H_
 // *******************************************************************************
 //
 // Project: Drivers.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -33,12 +33,21 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
+namespace Drivers
+{
+
+
 //! \brief Temperature interface.
-class ITemperature {
+class ITemperature
+{
 public:
     virtual ~ITemperature() = default;
+
     virtual auto GetTemperature() const -> float = 0;
 };
+
+
+} // namespace Drivers
 
 // ******************************************************************************
 //                            EXPORTED VARIABLES
@@ -55,4 +64,4 @@ public:
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // DRIVERS_ITEMPERATURE_H_
+#endif // DRIVERS__ITEMPERATURE_H_

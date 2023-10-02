@@ -24,7 +24,7 @@
 // *****************************************************************************
 
 // This modules.
-#include "drivers/inc/DS3234New.h"
+#include "drivers/inc/DS3234.h"
 
 // Standard Libraries.
 #include <cstdint>
@@ -77,8 +77,6 @@ enum eDayDateFields : uint8_t
     DAY_DATE_n = (0x1 << 6),
     AnMx       = (0x1 << 7)
 };
-
-enum eAddr : uint8_t {WR_BASE_ADDR = 0x80};
 
 // public:
 /* -------------------------------------------------------------------------
@@ -342,22 +340,6 @@ void DS3234::SetTimeAndDate(const tTime aTime, const tDate aDate) noexcept
     WrTimeAndDate(lRTCCTimeAndDate);
 }
 
-#if 0
-auto DS3234::GetTemperature() const noexcept -> float
-{
-    // Return temperature field.
-    // Convert temperature MSB and LSB to float.
-    static constexpr std::byte sTemperatureMSBAddr{0x11};
-    std::array<std::byte, 2> lRTCCTemperature{};
-    mSPIRd(lRTCCTemperature, sTemperatureMSBAddr);
-
-    const float lTempFloat{
-        static_cast<float>(lRTCCTemperature[0])
-        + (0.25F * static_cast<float>(std::to_integer<uint8_t>(lRTCCTemperature[1] >> 6)))
-    };
-    return lTempFloat;
-}
-#endif
 
 void DS3234::SetAlarm(
     const tTime aTime,
@@ -440,13 +422,13 @@ void DS3234::DisableAlarm() noexcept
     const auto lRTCCCtrl {RdCtrl() & ~std::byte{eCtrl::AEI2}};
     WrCtrl(lRTCCCtrl);
 }
-
+#endif
 
 void DS3234::RdFromNVMem(
     const std::span<std::byte> aData,
     const std::size_t aOffset
-) noexcept {
-
+) noexcept
+{
     // Write SRAM address register.
     // Cap size.
     // Loop into data register.
@@ -463,8 +445,8 @@ void DS3234::RdFromNVMem(
 void DS3234::WrToNVMem(
     const std::span<const std::byte> aData,
     const std::size_t aOffset
-) noexcept {
-
+) noexcept
+{
     // Write SRAM address register.
     // Cap size.
     // Loop into data register.
@@ -476,7 +458,23 @@ void DS3234::WrToNVMem(
     static constexpr auto sSRAMDataWrAddr {ToWrAddr(sSRAMDataAddr)};
     mSPIWr(aData, sSRAMDataWrAddr);
 }
-#endif
+
+
+auto DS3234::GetTemperature() const noexcept -> float
+{
+    // Return temperature field.
+    // Convert temperature MSB and LSB to float.
+    static constexpr std::byte sTemperatureMSBAddr{0x11};
+    std::array<std::byte, 2> lRTCCTemperature{};
+    mSPIRd(lRTCCTemperature, sTemperatureMSBAddr);
+
+    const float lTempFloat{
+        static_cast<float>(lRTCCTemperature[0])
+        + (0.25F * static_cast<float>(std::to_integer<uint8_t>(lRTCCTemperature[1] >> 6)))
+    };
+    return lTempFloat;
+}
+
 // *****************************************************************************
 //                              LOCAL FUNCTIONS
 // *****************************************************************************

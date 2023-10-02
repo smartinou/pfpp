@@ -30,7 +30,9 @@
 #include <cstddef>
 #include <span>
 
+#include "drivers/inc/INVMem.h"
 #include "drivers/inc/IRTCC.h"
+#include "drivers/inc/ITemperature.h"
 
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
@@ -58,6 +60,8 @@ namespace Drivers
 //! Implements INVMem and ITemperature interfaces.
 class DS3234 final
     : public IRTCC
+    , public INVMem
+    , public ITemperature
 {
 public:
     [[nodiscard]] explicit DS3234(
@@ -80,6 +84,13 @@ public:
     void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod, unsigned int aAlarmID = 0) noexcept override;
     void ClearAlarm(unsigned int aAlarmID = 0) noexcept override;
     bool ProcessAlarms(const Alarm::ProcessAlarmFct& aFct, void* aParam) noexcept override;
+
+    // INVMem interface.
+    void RdFromNVMem(std::span<std::byte> aData, std::size_t aOffset) noexcept override;
+    void WrToNVMem(std::span<const std::byte> aData, std::size_t aOffset) noexcept override;
+
+    // ITemperature interface.
+    [[nodiscard]] auto GetTemperature() const noexcept -> float override;
 
 private:
     using tRTCCReg = std::byte;
