@@ -1,5 +1,5 @@
-#ifndef CORELINK_SPIMASTERDEV_H_
-#define CORELINK_SPIMASTERDEV_H_
+#ifndef CORELINK__SPIMASTERDEV_H_
+#define CORELINK__SPIMASTERDEV_H_
 // *******************************************************************************
 //
 // Project: ARM Cortex-M.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -23,14 +23,17 @@
 
 // ******************************************************************************
 //                              INCLUDE FILES
-// ******************************************************************************
+// ******************************************
 
-#include "inc/CoreLinkPeripheralDev.h"
-#include "inc/ISPIMasterDev.h"
-#include "inc/SSIGPIO.h"
+// CoreLink library.
+#include "corelink/inc/CoreLinkPeripheralDev.h"
+#include "corelink/inc/SPISlaveCfg.h"
+#include "corelink/inc/SSIGPIO.h"
 
-
-namespace CoreLink {
+// Standard libraries.
+#include <cstddef>
+#include <optional>
+#include <span>
 
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
@@ -40,42 +43,46 @@ namespace CoreLink {
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
+namespace CoreLink
+{
+
+
 //! \class SPIMasterDev
 //! \brief SPI master device
 class SPIMasterDev final
-    : public ISPIMasterDev
-    , private PeripheralDev {
-
+    : private PeripheralBase
+{
 public:
     [[nodiscard]] explicit SPIMasterDev(
         uint32_t aBaseAddr,
         uint32_t aClkRate,
-        SSIGPIO const &aSSIGPIO
+        const SSIGPIO& aSSIGPIO
     ) noexcept;
 
     // ISPIMasterDev interface.
     void RdData(
-        SPISlaveCfg const &aSPICfg,
+        const SPISlaveCfg& aSPICfg,
         std::span<std::byte> aData,
         std::optional<std::byte> aAddr = std::nullopt
-    ) const noexcept final;
+    ) const noexcept;
 
     void WrData(
-        SPISlaveCfg const &aSPICfg,
-        std::span<std::byte const> aData,
+        const SPISlaveCfg& aSPICfg,
+        std::span<const std::byte> aData,
         std::optional<std::byte> aAddr = std::nullopt
-    ) const noexcept final;
+    ) const noexcept;
 
-    [[maybe_unused]] auto PushPullByte(std::byte aByte) const noexcept -> std::byte final;
+    [[maybe_unused]] auto PushPullByte(std::byte aByte) const noexcept
+        -> std::byte;
     [[maybe_unused]] auto PushPullByte(
-        SPISlaveCfg const &aSPICfg,
+        const SPISlaveCfg& aSPICfg,
         std::byte aByte
-    ) const noexcept -> std::byte final;
+    ) const noexcept -> std::byte;
 
-//private:
-    //void SetCfg(SPISlaveCfg const &aSPISlaveCfg) const noexcept;
+private:
+    void SetCfg(const SPISlaveCfg& aSPICfg) const noexcept;
 
-    //static auto ToNativeProtocol(SPISlaveCfg::tProtocol aProtocol) noexcept -> uint32_t;
+    mutable SPISlaveCfg mCachedSPISlaveCfg;
 };
 
 
@@ -96,4 +103,4 @@ public:
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // CORELINK_SPIMASTERDEV_H_
+#endif // CORELINK__SPIMASTERDEV_H_

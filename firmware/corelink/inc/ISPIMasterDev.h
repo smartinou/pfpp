@@ -1,5 +1,5 @@
-#ifndef CORELINK_ISPIMASTERDEV_H_
-#define CORELINK_ISPIMASTERDEV_H_
+#ifndef CORELINK__ISPIMASTERDEV_H_
+#define CORELINK__ISPIMASTERDEV_H_
 // *******************************************************************************
 //
 // Project: ARM Cortex-M.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -26,9 +26,9 @@
 // ******************************************************************************
 
 // This module.
-#include "SPISlaveCfg.h"
+#include "corelink/inc/SPISlaveCfg.h"
 
-// Standard Libraries.
+// Standard libraries.
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -42,31 +42,37 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
-namespace CoreLink {
+namespace CoreLink
+{
+
+
+using SPIRd = void (&)(std::span<std::byte> aData, std::optional<std::byte> aAddr);
+using SPIWr = void (&)(std::span<const std::byte> aData, std::optional<std::byte> aAddr);
 
 
 //! \brief Interface for SPI devices.
-class ISPIMasterDev {
+class ISPIMasterDev
+{
 public:
     virtual ~ISPIMasterDev() = default;
 
     virtual void RdData(
-        SPISlaveCfg const &aSPICfg,
+        const SPISlaveCfg& aSPICfg,
         std::span<std::byte> aData,
         std::optional<std::byte> aAddr
-    ) const = 0;
+    ) const noexcept = 0;
 
     virtual void WrData(
-        SPISlaveCfg const &aSPICfg,
-        std::span<std::byte const> aData,
+        const SPISlaveCfg& aSPICfg,
+        std::span<const std::byte> aData,
         std::optional<std::byte> aAddr
-    ) const = 0;
+    ) const noexcept = 0;
 
-    [[maybe_unused]] virtual auto PushPullByte(std::byte aByte) const -> std::byte = 0;
-    [[maybe_unused]] virtual auto PushPullByte(
-        SPISlaveCfg const &aSPICfg,
+    virtual auto PushPullByte(std::byte aByte) const noexcept -> std::byte = 0;
+    virtual auto PushPullByte(
+        const SPISlaveCfg& aSPICfg,
         std::byte aByte
-    ) const -> std::byte = 0;
+    ) const noexcept -> std::byte = 0;
 };
 
 
@@ -87,4 +93,4 @@ public:
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // CORELINK_ISPIMASTERDEV_H_
+#endif // CORELINK__ISPIMASTERDEV_H_
