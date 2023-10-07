@@ -13,7 +13,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -36,47 +36,47 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
-namespace CoreLink {
+namespace CoreLink
+{
 
 
-struct PeripheralBase {
-    uint32_t mBaseAddr{};
+struct PeripheralBase
+{
+    uint32_t mBaseAddr {};
+    uint32_t mClkRate {};
 };
 
 
-struct PeripheralDev
-    : PeripheralBase
+struct tPeripheralIDs
 {
-    uint32_t mClkRate{};
+    uint32_t mPeripheralID {};
+    uint32_t mPrimeCellID {};
+};
 
-    struct tIDRegMap {
-        std::array<uint32_t, 4> mPeripheralID{};
-        std::array<uint32_t, 4> mPrimeCellID{};
+[[nodiscard]] inline auto GetPeripheralID(const uint32_t aBaseAddr) noexcept -> tPeripheralIDs
+{
+    struct tIDRegMap
+    {
+        std::array<uint32_t, 4> mPeripheralID {};
+        std::array<uint32_t, 4> mPrimeCellID {};
+    };
+    static constexpr auto sIDRegOffset {0x0FE};
+    const auto lIDRegMap {reinterpret_cast<const tIDRegMap*>(aBaseAddr + sIDRegOffset)};
+    const uint32_t lPeripheralID {
+        (lIDRegMap->mPeripheralID[0] <<  0)
+        | (lIDRegMap->mPeripheralID[1] <<  8)
+        | (lIDRegMap->mPeripheralID[2] << 16)
+        | (lIDRegMap->mPeripheralID[3] << 24)
+    };
+    const uint32_t lPrimeCellID {
+        (lIDRegMap->mPrimeCellID[0] <<  0)
+        | (lIDRegMap->mPrimeCellID[1] <<  8)
+        | (lIDRegMap->mPrimeCellID[2] << 16)
+        | (lIDRegMap->mPrimeCellID[3] << 24)
     };
 
-    static auto constexpr sIDRegOffset{0x0FE};
-    [[nodiscard]] auto GetPeripheralID() const noexcept -> uint32_t {
-        auto const lIDRegMapPtr = reinterpret_cast<tIDRegMap const *>(mBaseAddr + sIDRegOffset);
-        uint32_t const lID{
-            (lIDRegMapPtr->mPeripheralID[0] <<  0)
-            | (lIDRegMapPtr->mPeripheralID[1] <<  8)
-            | (lIDRegMapPtr->mPeripheralID[2] << 16)
-            | (lIDRegMapPtr->mPeripheralID[3] << 24)
-        };
-        return lID;
-    }
-
-    [[nodiscard]] auto GetPrimCellID() const noexcept -> uint32_t {
-        auto const lIDRegMapPtr = reinterpret_cast<tIDRegMap const *>(mBaseAddr + sIDRegOffset);
-        uint32_t const lID{
-            (lIDRegMapPtr->mPrimeCellID[0] <<  0)
-            | (lIDRegMapPtr->mPrimeCellID[1] <<  8)
-            | (lIDRegMapPtr->mPrimeCellID[2] << 16)
-            | (lIDRegMapPtr->mPrimeCellID[3] << 24)
-        };
-        return lID;
-    }
-};
+    return { lPeripheralID, lPrimeCellID };
+}
 
 
 #if 0
@@ -103,26 +103,26 @@ protected:
 #if 0
         , mPeripheralID{
             [aBaseAddr]() -> uint32_t {
-                auto const lIDRegMapPtr =
+                auto const lIDRegMap =
                     reinterpret_cast<tIDRegMap const *>(aBaseAddr + 0x0FE0);
                 uint32_t const lID{
-                    (lIDRegMapPtr->mPeripheralID[0] <<  0)
-                    | (lIDRegMapPtr->mPeripheralID[1] <<  8)
-                    | (lIDRegMapPtr->mPeripheralID[2] << 16)
-                    | (lIDRegMapPtr->mPeripheralID[3] << 24)
+                    (lIDRegMap->mPeripheralID[0] <<  0)
+                    | (lIDRegMap->mPeripheralID[1] <<  8)
+                    | (lIDRegMap->mPeripheralID[2] << 16)
+                    | (lIDRegMap->mPeripheralID[3] << 24)
                 };
                 return lID;
             } ()
         }
         , mPrimeCellID{
             [aBaseAddr]() -> uint32_t {
-                auto const lIDRegMapPtr =
+                auto const lIDRegMap =
                     reinterpret_cast<tIDRegMap const *>(aBaseAddr + 0x0FE0);
                 uint32_t const lID{
-                    (lIDRegMapPtr->mPrimeCellID[0] <<  0)
-                    | (lIDRegMapPtr->mPrimeCellID[1] <<  8)
-                    | (lIDRegMapPtr->mPrimeCellID[2] << 16)
-                    | (lIDRegMapPtr->mPrimeCellID[3] << 24)
+                    (lIDRegMap->mPrimeCellID[0] <<  0)
+                    | (lIDRegMap->mPrimeCellID[1] <<  8)
+                    | (lIDRegMap->mPrimeCellID[2] << 16)
+                    | (lIDRegMap->mPrimeCellID[3] << 24)
                 };
                 return lID;
             } ()

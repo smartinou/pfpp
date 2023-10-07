@@ -51,9 +51,9 @@
 
 // This project.
 // Borrowed from TI TivaWare libraries.
-#include "gpio.h"
-#include "rom.h"
-#include "sysctl.h"
+#include "corelink/tm4c/gpio.h"
+#include "corelink/tm4c/rom.h"
+#include "corelink/tm4c/sysctl.h"
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS

@@ -1,5 +1,5 @@
-#ifndef CORELINK_GPIO_H_
-#define CORELINK_GPIO_H_
+#ifndef CORELINK__GPIO_H_
+#define CORELINK__GPIO_H_
 // *******************************************************************************
 //
 // Project: ARM Cortex-M.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -25,7 +25,7 @@
 //                              INCLUDE FILES
 // ******************************************************************************
 
-#include "inc/CoreLinkPeripheralDev.h"
+#include "corelink/inc/CoreLinkPeripheralDev.h"
 
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
@@ -35,12 +35,13 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
-namespace CoreLink {
+namespace CoreLink
+{
 
 
 //! \brief Describes a GPIO port pin.
 struct GPIO
-    : PeripheralBase
+    : public PeripheralBase
 {
     uint8_t mPin{};
     void EnableSysCtlPeripheral() const noexcept;
@@ -64,4 +65,4 @@ struct GPIO
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // CORELINK_GPIO_H_
+#endif // CORELINK__GPIO_H_
