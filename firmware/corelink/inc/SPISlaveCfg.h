@@ -60,6 +60,18 @@ struct SPISlaveCfg final
         NMW
     };
 
+    bool operator==(const SPISlaveCfg& aCfg) noexcept
+    {
+        return ((this->mProtocol == aCfg.mProtocol)
+            && (this->mBitRate == aCfg.mBitRate)
+            && (this->mDataWidth == aCfg.mDataWidth));
+    }
+
+    bool operator!=(const SPISlaveCfg& aCfg) noexcept
+    {
+        return !(*this == aCfg);
+    }
+
     tProtocol mProtocol{tProtocol::MOTO_0};
     unsigned int mBitRate{0};
 
