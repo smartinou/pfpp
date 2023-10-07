@@ -1,5 +1,5 @@
-#ifndef CORELINK_SSIGPIO_H_
-#define CORELINK_SSIGPIO_H_
+#ifndef CORELINK__SSIGPIO_H_
+#define CORELINK__SSIGPIO_H_
 // *******************************************************************************
 //
 // Project: ARM Cortex-M.
@@ -14,7 +14,7 @@
 
 // ******************************************************************************
 //
-//        Copyright (c) 2015-2022, Martin Garon, All rights reserved.
+//        Copyright (c) 2015-2023, Martin Garon, All rights reserved.
 //
 // This source code is licensed under the GPL-3.0-style license found in the
 // LICENSE file in the root directory of this source tree.
@@ -26,10 +26,7 @@
 // ******************************************************************************
 
 // This module.
-#include "inc/GPIO.h"
-
-// Standard Libraries.
-#include <cstdint>
+#include "corelink/inc/GPIO.h"
 
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
@@ -39,12 +36,14 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
-namespace CoreLink {
+namespace CoreLink
+{
 
 
 //! \class
 //! \brief SSI GPIO struct.
-struct SSIGPIO final {
+struct SSIGPIO final
+{
     uint32_t mClkPinCfg{};
     uint32_t mDat0PinCfg{};
     uint32_t mDat1PinCfg{};
@@ -74,4 +73,4 @@ struct SSIGPIO final {
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // CORELINK_SSIGPIO_H_
+#endif // CORELINK__SSIGPIO_H_
