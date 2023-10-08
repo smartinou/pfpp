@@ -69,12 +69,26 @@ void SSIGPIO::SetPins() const noexcept
     ROM_GPIOPinTypeSSI(mTxPin.mBaseAddr, mTxPin.mPin);
 
     // Set a weak pull-up on MISO pin for SD Card's proper operation.
-    // Clk and Tx set for standard push-pull operation by GPIOPinTypeSSI.
     ROM_GPIOPadConfigSet(
         mRxPin.mBaseAddr,
         mRxPin.mPin,
         GPIO_STRENGTH_2MA,
         GPIO_PIN_TYPE_STD_WPU
+    );
+
+    // Clk and Tx set for standard push-pull operation by GPIOPinTypeSSI.
+    ROM_GPIOPadConfigSet(
+        mClkPin.mBaseAddr,
+        mClkPin.mPin,
+        GPIO_STRENGTH_2MA,
+        GPIO_PIN_TYPE_STD
+    );
+
+    ROM_GPIOPadConfigSet(
+        mTxPin.mBaseAddr,
+        mTxPin.mPin,
+        GPIO_STRENGTH_2MA,
+        GPIO_PIN_TYPE_STD
     );
 }
 

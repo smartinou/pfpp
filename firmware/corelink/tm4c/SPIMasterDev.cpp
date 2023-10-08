@@ -53,20 +53,6 @@
 namespace CoreLink
 {
 
-
-SPIMasterDev::SPIMasterDev(
-    const uint32_t aBaseAddr,
-    const uint32_t aClkRate,
-    const SSIGPIO& aSSIGPIO
-) noexcept
-   :  PeripheralBase{aBaseAddr, aClkRate}
-{
-    ROM_SSIDisable(mBaseAddr);
-        aSSIGPIO.SetPins();
-    ROM_SSIEnable(mBaseAddr);
-}
-
-
 void SPIMasterDev::RdData(
     const SPISlaveCfg& aSPICfg,
     const std::span<std::byte> aData,

@@ -15,6 +15,7 @@ project:
 
   define:
     - TARGET_IS_TM4C123_RB1
+    - PART_TM4C123GH6PM
 
   linker:
     - script: ./tm4c123.ld
@@ -26,4 +27,10 @@ project:
         - file: startup_TM4C123GH6PM.c
         - file: ../../firmware/qp_ao/codegen/PFPP_AOs.cpp
         - file: ../../firmware/qp_ao/codegen/PFPP_HSMs.cpp
+        - file: ../../firmware/qp_ao/codegen/RTCC_AOs.cpp
         - file: ../../firmware/utils/shell/Shell.cpp
+        - file: ../../firmware/drivers/src/DS3234.cpp
+        - file: ../../firmware/corelink/tm4c/GPIO.cpp
+        - file: ../../firmware/corelink/tm4c/SPISlaveCfg.cpp
+        - file: ../../firmware/corelink/tm4c/SSIGPIO.cpp
+        - file: ../../firmware/corelink/tm4c/SPIMasterDev.cpp

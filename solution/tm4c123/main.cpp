@@ -40,6 +40,9 @@
 #include "inc/FeedCfg.h"
 #include "drivers/inc/IMotorControl.h"
 
+// CoreLink Library.
+#include "corelink/inc/SPIMasterDev.h"
+
 // QM codegen.
 #include "qp_ao/codegen/PFPP_AOs.h"
 #include "qp_ao/codegen/PFPP_Events.h"
@@ -52,6 +55,7 @@
 // This project.
 // Borrowed from TI TivaWare libraries.
 #include "corelink/tm4c/gpio.h"
+#include "corelink/tm4c/pin_map.h"
 #include "corelink/tm4c/rom.h"
 #include "corelink/tm4c/sysctl.h"
 
@@ -113,6 +117,32 @@ static constexpr QP::QSpyId sSysTick_Handler {0U};
 static constexpr QP::QSpyId sOnFlush {0U};
 
 #endif // Q_SPY
+
+
+// PB4: SSI0CLK
+// PB6: SSI0RX (MISO)
+// PB7: SSI0TX (MOSI)
+static constexpr CoreLink::SSIGPIO sSSI2GPIO{
+    .mClkPinCfg{GPIO_PB4_SSI2CLK},
+    .mDat0PinCfg{GPIO_PB6_SSI2RX},
+    .mDat1PinCfg{GPIO_PB7_SSI2TX},
+
+    .mClkPin{GPIOB_BASE, GPIO_PIN_4},
+    .mRxPin{GPIOB_BASE, GPIO_PIN_6},
+    .mTxPin{GPIOB_BASE, GPIO_PIN_7}
+};
+
+static constexpr CoreLink::SPIMasterDev sSPIMasterDev{
+    SSI2_BASE,
+    50000000UL
+};
+
+static constexpr CoreLink::SPISlaveCfg sRTCCSPISlaveCfg{
+    .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
+    .mBitRate{4000000UL},
+    .mDataWidth{8},
+    .mCSn{GPIOA_BASE, GPIO_PIN_3}
+};
 
 // *****************************************************************************
 //                            EXPORTED FUNCTIONS
@@ -205,6 +235,9 @@ static void Init()
         GPIO_STRENGTH_2MA,
         GPIO_PIN_TYPE_STD_WPU
     );
+
+    sSSI2GPIO.SetPins();
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
 
     // Call QS::onStartup().
     // Has to be setup early for dictionary entries to be set.

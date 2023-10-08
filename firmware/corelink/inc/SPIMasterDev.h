@@ -53,11 +53,12 @@ class SPIMasterDev final
     : private PeripheralBase
 {
 public:
-    [[nodiscard]] explicit SPIMasterDev(
-        uint32_t aBaseAddr,
-        uint32_t aClkRate,
-        const SSIGPIO& aSSIGPIO
-    ) noexcept;
+    [[nodiscard]] explicit constexpr SPIMasterDev(
+        const uint32_t aBaseAddr,
+        const uint32_t aClkRate
+    ) noexcept
+        :  PeripheralBase{aBaseAddr, aClkRate}
+    {/* Ctor body. */}
 
     // ISPIMasterDev interface.
     void RdData(
