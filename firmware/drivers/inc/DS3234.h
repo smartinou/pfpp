@@ -34,6 +34,8 @@
 #include "drivers/inc/IRTCC.h"
 #include "drivers/inc/ITemperature.h"
 
+#include "corelink/inc/Types.h"
+
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
 // ******************************************************************************
@@ -41,16 +43,6 @@
 // ******************************************************************************
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
-
-// Forward declaration.
-namespace CoreLink
-{
-    //class ISPIMasterDev;
-using SPIRd = void (&)(std::span<std::byte> aData, std::byte aAddr);
-using SPIWr = void (&)(std::span<const std::byte> aData, std::byte aAddr);
-
-}
-
 
 namespace Drivers
 {
@@ -82,10 +74,11 @@ public:
 
     void SetAlarm(tTime aTime, tDate aDate, Alarm::eRate aPeriod, unsigned int aAlarmID = 0) noexcept override;
     void SetAlarm(tTime aTime, tWeekday aWeekday, Alarm::eRate aPeriod, unsigned int aAlarmID = 0) noexcept override;
-    void ClearAlarm(unsigned int aAlarmID = 0) noexcept override;
-    bool ProcessAlarms(const Alarm::ProcessAlarmFct& aFct, void* aParam) noexcept override;
+    void ClearAlarm(unsigned int aAlarmID = 0) noexcept override {}
+    bool ProcessAlarms(const Alarm::ProcessAlarmFct& aFct, void* aParam) noexcept override {return false;}
 
     // INVMem interface.
+    [[nodiscard]] auto GetNVMemSize() const noexcept -> std::size_t override {return 256;}
     void RdFromNVMem(std::span<std::byte> aData, std::size_t aOffset) noexcept override;
     void WrToNVMem(std::span<const std::byte> aData, std::size_t aOffset) noexcept override;
 
@@ -173,7 +166,7 @@ private:
 
     static constexpr auto mBaseYear {2000};
 
-    std::array<Alarm, 2> mAlarms;
+    std::array<Alarm, 2> mAlarms {};
 
     CoreLink::SPIRd mSPIRd;
     CoreLink::SPIWr mSPIWr;

@@ -154,29 +154,13 @@ static constexpr std::byte sSRAMDataAddr{0x19};
 
 // Ctor.
 DS3234::DS3234(
-    //unsigned long const aInterruptNumber,
-    //CoreLink::GPIO const &aInterruptPin,
-    //std::shared_ptr<CoreLink::ISPIMasterDev> const aSPIMasterDev,
-    //CoreLink::GPIO const &aCSnPin
-    CoreLink::SPIRd aSPIRd,
-    CoreLink::SPIWr aSPIWr
+    const CoreLink::SPIRd aSPIRd,
+    const CoreLink::SPIWr aSPIWr
 ) noexcept
-#if 0
-    : mSPIMasterDev{std::move(aSPIMasterDev)}
-    , mSPISlaveCfg{
-        CoreLink::GPIO{aCSnPin.mBaseAddr, aCSnPin.mPin},
-        CoreLink::SPISlaveCfg::tProtocol::MOTO_1,
-        sSPIClk,
-        sSPIBits
-    }
-    , mInterruptNumber{aInterruptNumber}
-    , mInterruptGPIO{aInterruptPin}
-#else
     : mSPIRd{aSPIRd}
     , mSPIWr{aSPIWr}
-#endif
 {
-    //mSPISlaveCfg.InitCSnGPIO();
+    // Ctor body.
 }
 
 
@@ -191,7 +175,7 @@ void DS3234::Init() noexcept
     //mRegMap.mCtrl = std::byte{eCtrl::INTCn};
     //mRegMap.mStatus = std::byte{0x00};
     static constexpr std::array<tRTCCReg, 2> sCtrlStatus{std::byte{eCtrl::INTCn}, std::byte{0x00}};
-    mSPIWr(std::as_bytes(std::span{sCtrlStatus}), ToWrAddr(sCtrlAddr));
+    mSPIWr(std::as_bytes(std::span{sCtrlStatus}), std::optional(ToWrAddr(sCtrlAddr)));
 
     // Force set time to 24H mode if set to 12H: R-M-W.
     // [MG] ESSAYER DE MERGER CA DANS WrTimeAndDate().
@@ -263,7 +247,7 @@ bool DS3234::ISR() noexcept
 {
     // Read Status registers.
     std::array<tRTCCReg, 1> lRTCCStatus{};
-    mSPIRd(std::as_writable_bytes(std::span{lRTCCStatus}), sStatusAddr);
+    mSPIRd(std::as_writable_bytes(std::span{lRTCCStatus}), std::optional(sStatusAddr));
 
     // Alarm1 interrupt?
     std::byte lFlagMask{};
@@ -281,7 +265,7 @@ bool DS3234::ISR() noexcept
     // Clear raised flags.
     if (std::to_integer<bool>(lFlagMask)) {
         lRTCCStatus[0] &= ~lFlagMask;
-        mSPIWr(std::as_bytes(std::span{lRTCCStatus}), ToWrAddr(sStatusAddr));
+        mSPIWr(std::as_bytes(std::span{lRTCCStatus}), std::optional(ToWrAddr(sStatusAddr)));
     }
 
     const auto [lTime, lDate] {GetTimeAndDate()};
@@ -435,10 +419,10 @@ void DS3234::RdFromNVMem(
     static constexpr auto sSRAMAddrWrAddr {ToWrAddr(sSRAMAddrAddr)};
     mSPIWr(
         std::as_writable_bytes(std::span{reinterpret_cast<std::byte*>(aOffset), sizeof(tRTCCReg)}),
-        sSRAMAddrWrAddr
+        std::optional(sSRAMAddrWrAddr)
     );
 
-    mSPIRd(aData, sSRAMDataAddr);
+    mSPIRd(aData, std::optional(sSRAMDataAddr));
 }
 
 
@@ -452,11 +436,11 @@ void DS3234::WrToNVMem(
     // Loop into data register.
     mSPIWr(
         std::as_bytes(std::span{reinterpret_cast<std::byte*>(aOffset), sizeof(tRTCCReg)}),
-        ToWrAddr(sSRAMAddrAddr)
+        std::optional(ToWrAddr(sSRAMAddrAddr))
     );
 
     static constexpr auto sSRAMDataWrAddr {ToWrAddr(sSRAMDataAddr)};
-    mSPIWr(aData, sSRAMDataWrAddr);
+    mSPIWr(aData, std::optional(sSRAMDataWrAddr));
 }
 
 
@@ -466,7 +450,7 @@ auto DS3234::GetTemperature() const noexcept -> float
     // Convert temperature MSB and LSB to float.
     static constexpr std::byte sTemperatureMSBAddr{0x11};
     std::array<std::byte, 2> lRTCCTemperature{};
-    mSPIRd(lRTCCTemperature, sTemperatureMSBAddr);
+    mSPIRd(lRTCCTemperature, std::optional(sTemperatureMSBAddr));
 
     const float lTempFloat{
         static_cast<float>(lRTCCTemperature[0])
@@ -482,7 +466,7 @@ auto DS3234::GetTemperature() const noexcept -> float
 auto DS3234::RdCtrl() const noexcept -> tRTCCReg
 {
     std::array<tRTCCReg, 1> lRTCCCtrl{};
-    mSPIRd(std::as_writable_bytes(std::span{lRTCCCtrl}), sCtrlAddr);
+    mSPIRd(std::as_writable_bytes(std::span{lRTCCCtrl}), std::optional(sCtrlAddr));
 
     return lRTCCCtrl[0];
 }
@@ -491,14 +475,14 @@ auto DS3234::RdCtrl() const noexcept -> tRTCCReg
 void DS3234::WrCtrl(const std::array<tRTCCReg, 1> aCtrl) noexcept
 {
     static constexpr auto sCtrlWrAddr {ToWrAddr(sCtrlAddr)};
-    mSPIWr(std::as_bytes(std::span{aCtrl}), sCtrlWrAddr);
+    mSPIWr(std::as_bytes(std::span{aCtrl}), std::optional(sCtrlWrAddr));
 }
 
 
 auto DS3234::RdStatus() const noexcept -> tRTCCReg
 {
     std::array<tRTCCReg, 1> lRTCCStatus{};
-    mSPIRd(std::as_writable_bytes(std::span{lRTCCStatus}), sStatusAddr);
+    mSPIRd(std::as_writable_bytes(std::span{lRTCCStatus}), std::optional(sStatusAddr));
 
     return lRTCCStatus[0];
 }
@@ -507,7 +491,7 @@ auto DS3234::RdStatus() const noexcept -> tRTCCReg
 void DS3234::WrStatus(const std::array<tRTCCReg, 1> aStatus) noexcept
 {
     static constexpr auto sStatusWrAddr {ToWrAddr(sStatusAddr)};
-    mSPIWr(std::as_bytes(std::span{aStatus}), sStatusWrAddr);
+    mSPIWr(std::as_bytes(std::span{aStatus}), std::optional(sStatusWrAddr));
 }
 
 
@@ -516,7 +500,7 @@ auto DS3234::RdTimeAndDate() const noexcept -> tRTCCTimeDate
     tRTCCTimeDate lRTCCTimeDate{};
     mSPIRd(
         std::as_writable_bytes(std::span{&lRTCCTimeDate, sizeof(lRTCCTimeDate)}),
-        sSecondsAddr
+        std::optional(sSecondsAddr)
     );
 
     return lRTCCTimeDate;
@@ -527,7 +511,7 @@ void DS3234::WrTimeAndDate(const tRTCCTimeDate& aTimeAndDate) noexcept
 {
     mSPIWr(
         std::as_bytes(std::span{&aTimeAndDate, sizeof(aTimeAndDate)}),
-        ToWrAddr(sSecondsAddr)
+        std::optional(ToWrAddr(sSecondsAddr))
     );
     mIsCacheValid = false;
 }
@@ -723,7 +707,7 @@ void DS3234::WrAlarm1Struct(const tRTCCAlarm1& aRTCCAlarm) noexcept
     static constexpr auto sAlarm1WrAddr{sAlarm1RdAddr};
     mSPIWr(
         std::as_bytes(std::span{&aRTCCAlarm, sizeof(tRTCCAlarm1)}),
-        sAlarm1WrAddr
+        std::optional(sAlarm1WrAddr)
     );
 
     // Send control 1.
@@ -736,7 +720,7 @@ void DS3234::WrAlarm2Struct(const tRTCCAlarm2& aRTCCAlarm) noexcept
     static constexpr auto sAlarm2WrAddr{sAlarm2RdAddr};
     mSPIWr(
         std::as_bytes(std::span{&aRTCCAlarm, sizeof(tRTCCAlarm2)}),
-        sAlarm2WrAddr
+        std::optional(sAlarm2WrAddr)
     );
 
     // Send control 2.

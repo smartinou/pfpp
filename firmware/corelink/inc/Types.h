@@ -1,16 +1,16 @@
-#ifndef DRIVERS__INVMEMDEV_H_
-#define DRIVERS__INVMEMDEV_H_
+#ifndef CORELINK__TYPES_H_
+#define CORELINK__TYPES_H_
 // *******************************************************************************
 //
-// Project: Drivers.
+// Project: ARM Cortex-M.
 //
-// Module: NVMem.
+// Module: CoreLink Peripherals.
 //
 // *******************************************************************************
 
 //! \file
-//! \brief Non-volatile memory interface class.
-//! \ingroup ext_peripherals
+//! \brief CoreLink peripheral SPI device class declaration.
+//! \ingroup corelink_peripherals
 
 // ******************************************************************************
 //
@@ -25,8 +25,9 @@
 //                              INCLUDE FILES
 // ******************************************************************************
 
-// Standard Libraries.
+// Standard libraries.
 #include <cstddef>
+#include <optional>
 #include <span>
 
 // ******************************************************************************
@@ -37,29 +38,15 @@
 //                         TYPEDEFS AND STRUCTURES
 // ******************************************************************************
 
-namespace Drivers
+namespace CoreLink
 {
 
 
-//! \brief Non-Volatile Memory interface.
-class INVMem
-{
-public:
-    virtual ~INVMem() = default;
-
-    virtual auto GetNVMemSize() const -> std::size_t = 0;
-    virtual void RdFromNVMem(
-        std::span<std::byte> aData,
-        std::size_t aOffset
-    ) = 0;
-    virtual void WrToNVMem(
-        std::span<const std::byte> aData,
-        std::size_t aOffset
-    ) = 0;
-};
+using SPIRd = void (&)(std::span<std::byte> aData, std::optional<std::byte> aAddr);
+using SPIWr = void (&)(std::span<const std::byte> aData, std::optional<std::byte> aAddr);
 
 
-} // namespace Drivers
+} // namespace CoreLink
 
 // ******************************************************************************
 //                            EXPORTED VARIABLES
@@ -76,4 +63,4 @@ public:
 // ******************************************************************************
 //                                END OF FILE
 // ******************************************************************************
-#endif // DRIVERS__INVMEMDEV_H_
+#endif // CORELINK__TYPES_H_

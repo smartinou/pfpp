@@ -39,6 +39,7 @@
 // Firmware Libraries.
 #include "inc/FeedCfg.h"
 #include "drivers/inc/IMotorControl.h"
+#include "drivers/inc/DS3234.h"
 
 // CoreLink Library.
 #include "corelink/inc/SPIMasterDev.h"
@@ -46,6 +47,7 @@
 // QM codegen.
 #include "qp_ao/codegen/PFPP_AOs.h"
 #include "qp_ao/codegen/PFPP_Events.h"
+#include "qp_ao/codegen/RTCC_AOs.h"
 #include "qp_ao/codegen/Signals.h"
 
 // From CMSIS-Pack.
@@ -63,12 +65,12 @@
 //                      DEFINED CONSTANTS AND MACROS
 // *****************************************************************************
 
-static constexpr uint32_t LED_RED {0x1U << 1};
-static constexpr uint32_t LED_GREEN {0x1U << 3};
-static constexpr uint32_t LED_BLUE {0x1U << 2};
+static constexpr uint32_t LED_RED{0x1U << 1};
+static constexpr uint32_t LED_GREEN{0x1U << 3};
+static constexpr uint32_t LED_BLUE{0x1U << 2};
 
-static constexpr uint32_t BTN_SW1 {0x1U << 4};
-static constexpr uint32_t BTN_SW2 {0x1U << 0};
+static constexpr uint32_t BTN_SW1{0x1U << 4};
+static constexpr uint32_t BTN_SW2{0x1U << 0};
 
 // *****************************************************************************
 //                         TYPEDEFS AND STRUCTURES
@@ -80,7 +82,7 @@ class DummyMotorControl final
     // IMotorControl interface.
     void TurnOnCW([[maybe_unused]] unsigned int aDutyCycle = 100) const
     {
-        GPIOF->RESERVED[LED_RED] = 0xFFU;
+        ROM_GPIOPinWrite(GPIOF_BASE, LED_RED, LED_RED);
     }
 
     void TurnOnCCW([[maybe_unused]] unsigned int aDutyCycle = 100) const
@@ -90,7 +92,7 @@ class DummyMotorControl final
 
     void TurnOff() const
     {
-        GPIOF->RESERVED[LED_RED] = 0U;
+        ROM_GPIOPinWrite(GPIOF_BASE, LED_RED, 0);
     }
 };
 
@@ -101,23 +103,35 @@ class DummyMotorControl final
 static void Init();
 static void DebounceSwitches();
 
+static void SPIReadFromRTCC(
+    std::span<std::byte> aData,
+    std::optional<std::byte> aAddr = std::nullopt
+) noexcept;
+
+static void SPIWriteToRTCC(
+    std::span<const std::byte> aData,
+    std::optional<std::byte> aAddr = std::nullopt
+) noexcept;
+
 // *****************************************************************************
 //                             GLOBAL VARIABLES
 // *****************************************************************************
 
-static constexpr auto sBSPTicksPerSecond {100};
+static constexpr auto sBSPTicksPerSecond{100};
 
 #ifdef Q_SPY
 
-static QP::QSTimeCtr QS_tickTime_ {};
-static QP::QSTimeCtr QS_tickPeriod_ {};
+static QP::QSTimeCtr QS_tickTime_{};
+static QP::QSTimeCtr QS_tickPeriod_{};
 
 // QSpy source IDs
-static constexpr QP::QSpyId sSysTick_Handler {0U};
-static constexpr QP::QSpyId sOnFlush {0U};
+static constexpr QP::QSpyId sSysTick_Handler{0U};
+static constexpr QP::QSpyId sOnFlush{0U};
 
 #endif // Q_SPY
 
+static constexpr CoreLink::GPIO lRTCCInt{GPIOA_BASE, GPIO_PIN_4};
+static constexpr CoreLink::GPIO lRTCCRst{GPIOF_BASE, GPIO_PIN_4};
 
 // PB4: SSI0CLK
 // PB6: SSI0RX (MISO)
@@ -153,7 +167,7 @@ int main()
     QP::QF::init();
 
     // Initialize event pool.
-    static QF_MPOOL_EL(PFPP::Event::Feeder::ManualFeedCmd) sSmallPoolSto[20] {};
+    static QF_MPOOL_EL(PFPP::Event::Feeder::ManualFeedCmd) sSmallPoolSto[20]{};
     QP::QF::poolInit(
         sSmallPoolSto,
         sizeof(sSmallPoolSto),
@@ -161,7 +175,7 @@ int main()
     );
 
     // Init publish-subscribe.
-    static std::array<QP::QSubscrList, QTY_SIG> lSubsribeSto {};
+    static std::array<QP::QSubscrList, QTY_SIG> lSubsribeSto{};
     QP::QF::psInit(lSubsribeSto.data(), lSubsribeSto.size());
 
     // Send object dictionaries for event pools...
@@ -171,25 +185,35 @@ int main()
     Init();
 
     using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
-    auto lToTicksFct {
+    auto lToTicksFct{
         [](const auto aDuration)
         {
             return std::chrono::duration_cast<Ticks>(aDuration).count();
         }
     };
 
-    static constexpr auto sAlarmID {0};
-    PFPP::AO::Mgr lPFPPAO {
+    static constexpr auto sAlarmID{0};
+    PFPP::AO::Mgr lPFPPAO{
         sAlarmID,
         std::make_unique<DummyMotorControl>(),
         lToTicksFct
     };
 
-    static std::array<const QP::QEvt*, 10> sEventQSto {};
+    static std::array<const QP::QEvt*, 10> sEventQSto{};
     lPFPPAO.start(
         1U,
         sEventQSto.data(),
         sEventQSto.size(),
+        nullptr, 0U
+    );
+
+    static std::array<const QP::QEvt*, 10> sRTCCEventQSto{};
+    auto lRTCC{std::make_unique< Drivers::DS3234>(SPIReadFromRTCC, SPIWriteToRTCC)};
+    RTCC::AO::Mgr lRTCCAO{std::move(lRTCC)};
+    lRTCCAO.start(
+        2U,
+        sRTCCEventQSto.data(),
+        sRTCCEventQSto.size(),
         nullptr, 0U
     );
 
@@ -210,17 +234,13 @@ static void Init()
 
     // NOTE: The VFP (hardware Floating Point) unit is configured by QV
 
-    // enable clock for to the peripherals used by this application...
-    SYSCTL->RCGCGPIO |= (1U << 5); // enable Run mode for GPIOF
+    // Enable clock for to the peripherals used by this application...
+    // Configure the LEDs and push buttons.
+    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    ROM_GPIODirModeSet(GPIOF_BASE, (LED_RED | LED_GREEN | LED_BLUE), GPIO_DIR_MODE_IN);
+    ROM_GPIOPinWrite(GPIOF_BASE, (LED_RED | LED_GREEN | LED_BLUE), 0);
 
-    // configure the LEDs and push buttons
-    GPIOF->DIR |= (LED_RED | LED_GREEN | LED_BLUE); // set direction: output
-    GPIOF->DEN |= (LED_RED | LED_GREEN | LED_BLUE); // digital enable
-    GPIOF->RESERVED[LED_RED]   = 0U;  // turn the LED off
-    GPIOF->RESERVED[LED_GREEN] = 0U;  // turn the LED off
-    GPIOF->RESERVED[LED_BLUE]  = 0U;  // turn the LED off
-
-    // configure the Buttons:
+    // Configure the Buttons:
     // PF0 can be used as NMI, and requires unlocking Commit Register (CR)
     // before any write to PUR, PDR, PAFSEL, PDEN.
     GPIOF->LOCK = 0x4c4f434b;
@@ -228,7 +248,8 @@ static void Init()
     //GPIOF->PDEN |= BTN_SW2;
 
     // Set direction: input.
-    GPIOF->DIR &= ~(BTN_SW1 | BTN_SW2);
+    //GPIOF->DIR &= ~(BTN_SW1 | BTN_SW2);
+    ROM_GPIODirModeSet(GPIOF_BASE, (BTN_SW1 | BTN_SW2), GPIO_DIR_MODE_IN);
     ROM_GPIOPadConfigSet(
         GPIOF_BASE,
         (BTN_SW1 | BTN_SW2),
@@ -236,6 +257,7 @@ static void Init()
         GPIO_PIN_TYPE_STD_WPU
     );
 
+    // RTCC pins, SPI peripheral.
     sSSI2GPIO.SetPins();
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
 
@@ -276,11 +298,11 @@ void QP::QF::onCleanup()
 
 //............................................................................
 void QP::QV::onIdle()
-{ // CAUTION: called with interrupts DISABLED, NOTE01
-
-    // toggle LED2 on and then off, see NOTE01
-    GPIOF->RESERVED[LED_GREEN] = 0xFFU;
-    GPIOF->RESERVED[LED_GREEN] = 0x00U;
+{
+    // CAUTION: called with interrupts DISABLED, NOTE01
+    // Toggle LED2 on and then off, see NOTE01.
+    ROM_GPIOPinWrite(GPIOF_BASE, LED_GREEN, LED_GREEN);
+    ROM_GPIOPinWrite(GPIOF_BASE, LED_GREEN, 0);
 
 #ifdef NDEBUG
     // Put the CPU and peripherals to the low-power mode.
@@ -315,11 +337,11 @@ extern "C" Q_NORETURN Q_onAssert(
 bool QP::QS::onStartup([[maybe_unused]] const void* const aArgs)
 {
     // Buffer for Quantum Spy.
-    static std::array<uint8_t, 2 * 1024> sQSTxBuf {};
+    static std::array<uint8_t, 2 * 1024> sQSTxBuf{};
     initBuf(sQSTxBuf.data(), sQSTxBuf.size());
 
     // Buffer for QS receive channel.
-    static std::array<uint8_t, 100> sQSRxBuf {};
+    static std::array<uint8_t, 100> sQSRxBuf{};
     rxInitBuf(sQSRxBuf.data(), sQSRxBuf.size());
 
     // To start the timestamp at zero.
@@ -372,10 +394,10 @@ void QP::QS::onFlush()
     // At least one block of data ready to get out.
     // Create an event for each of them and publish to all subscribing sinks.
     // [MG] CREATE SINKS WITH lBlockSize BUFFERS.
-    uint16_t lBlockSize {1024};
+    uint16_t lBlockSize{1024};
     QF_INT_DISABLE();
-    while (const auto lBlock {QS::getBlock(&lBlockSize)}) {
-        auto lQSPYBlockEvt {Q_NEW(BSP::Event::QSPYProcBlock, BSP_QSPY_PROC_BLOCK_SIG)};
+    while (const auto lBlock{QS::getBlock(&lBlockSize)}) {
+        auto lQSPYBlockEvt{Q_NEW(BSP::Event::QSPYProcBlock, BSP_QSPY_PROC_BLOCK_SIG)};
         QF_INT_ENABLE();
 
         lQSPYBlockEvt->mBlock = lBlock;
@@ -411,7 +433,7 @@ void SysTick_Handler(void)
 #ifdef Q_SPY
     // Clear SysTick_CTRL_COUNTFLAG.
     // Account for the clock rollover.
-    [[maybe_unused]] const auto lTemp {SysTick->CTRL};
+    [[maybe_unused]] const auto lTemp{SysTick->CTRL};
     QS_tickTime_ += QS_tickPeriod_;
 #endif
 
@@ -431,19 +453,19 @@ void SysTick_Handler(void)
 static void DebounceSwitches()
 {
     // Read current pin state into array of pin states.
-    static constexpr auto sStateDepth {5};
+    static constexpr auto sStateDepth{5};
     using PinType = uint32_t;
-    static std::array<PinType, sStateDepth> sPinsState {0};
-    static PinType sPreviousDebounce {0};
-    static decltype(sPinsState.size()) lStateIx {0};
-    sPinsState.at(lStateIx) = ~GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
+    static std::array<PinType, sStateDepth> sPinsState{0};
+    static PinType sPreviousDebounce{0};
+    static decltype(sPinsState.size()) lStateIx{0};
+    sPinsState.at(lStateIx) = ~ROM_GPIOPinRead(GPIOF_BASE, (BTN_SW1 | BTN_SW2));//GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
     ++lStateIx;
     if (lStateIx >= sPinsState.size()) {
         lStateIx = 0;
     }
 
     // Bitwise-AND all last current pin states.
-    const auto lCurrentDebounce {
+    const auto lCurrentDebounce{
         std::accumulate(
             sPinsState.cbegin(),
             sPinsState.cend(),
@@ -456,25 +478,43 @@ static void DebounceSwitches()
     if ((~sPreviousDebounce) & lCurrentDebounce) {
 
         if (lCurrentDebounce & BTN_SW1) {
-            static const BSP::Event::ButtonEvt sOnEvt {BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            static const BSP::Event::ButtonEvt sOnEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
         if (lCurrentDebounce & BTN_SW2) {
-            static const BSP::Event::ButtonEvt sOnEvt {BSP_TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            static const BSP::Event::ButtonEvt sOnEvt{BSP_TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
     }
 
     // Look for released states.
     if (sPreviousDebounce & ~lCurrentDebounce) {
-        if ((sPreviousDebounce) & BTN_SW1) {
-            static const BSP::Event::ButtonEvt sOffEvt {BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
+        if ((sPreviousDebounce) & BTN_SW1){
+            static const BSP::Event::ButtonEvt sOffEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
             QP::QF::PUBLISH(&sOffEvt, &sSysTick_Handler);
         }
     }
 
     sPreviousDebounce = lCurrentDebounce;
 }
+
+static void SPIReadFromRTCC(
+    std::span<std::byte> aData,
+    std::optional<std::byte> aAddr
+) noexcept
+{
+    sSPIMasterDev.RdData(sRTCCSPISlaveCfg, aData, aAddr);
+}
+
+
+static void SPIWriteToRTCC(
+    std::span<const std::byte> aData,
+    std::optional<std::byte> aAddr
+) noexcept
+{
+    sSPIMasterDev.WrData(sRTCCSPISlaveCfg, aData, aAddr);
+}
+
 
 // *****************************************************************************
 //                                END OF FILE
