@@ -30,6 +30,7 @@ project:
         - file: ../../firmware/qp_ao/codegen/RTCC_AOs.cpp
         - file: ../../firmware/utils/shell/Shell.cpp
         - file: ../../firmware/drivers/src/DS3234.cpp
+        - file: ../../firmware/drivers/tm4c/TB6612.cpp
         - file: ../../firmware/corelink/tm4c/GPIO.cpp
         - file: ../../firmware/corelink/tm4c/SPISlaveCfg.cpp
         - file: ../../firmware/corelink/tm4c/SSIGPIO.cpp
