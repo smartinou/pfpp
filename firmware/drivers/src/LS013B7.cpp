@@ -27,6 +27,7 @@
 #include "drivers/inc/LS013B7.h"
 
 // STL.
+#include <cstddef>
 #include <functional>
 
 // *****************************************************************************
@@ -40,6 +41,30 @@
 // *****************************************************************************
 //                            FUNCTION PROTOTYPES
 // *****************************************************************************
+
+//*****************************************************************************
+//
+// Translates a 24-bit RGB color to a display driver-specific color.
+//
+// \param c is the 24-bit RGB color.  The least-significant byte is the blue
+// channel, the next byte is the green channel, and the third byte is the red
+// channel.
+//
+// This macro translates a 24-bit RGB color into a value that can be written
+// into the display's frame buffer in order to reproduce that color, or the
+// closest possible approximation of that color.
+//
+// \return Returns the display-driver specific color.
+//
+//*****************************************************************************
+static constexpr uint32_t DPYCOLORTRANSLATE(const uint32_t aColor) {
+    return
+        (((((aColor & 0x00ff0000) >> 16) * 19661) +
+            (((aColor & 0x0000ff00) >> 8) * 38666) +
+                ((aColor & 0x000000ff) * 7209)
+        ) / (65536 * 128)
+    );
+}
 
 // *****************************************************************************
 //                             GLOBAL VARIABLES
@@ -57,7 +82,9 @@ LS013B7::LS013B7(
     const CoreLink::SPIAssert aSPIAssert,
     const CoreLink::SPIAssert aSPIDeassert,
     const CoreLink::SPIWr aSPIWr,
-    const CoreLink::PushPullByte aSPIPushPullByte
+    const CoreLink::PushPullByte aSPIPushPullByte,
+    GPIOOnOff aGPIODisplayOn,
+    GPIOOnOff aGPIODisplayOff
 ) noexcept
     : tDisplay{
         .i32Size{sizeof(LS013B7)}
@@ -137,6 +164,8 @@ LS013B7::LS013B7(
     , mSPIDeassert{aSPIDeassert}
     , mSPIWr{aSPIWr}
     , mSPIPushPullByte{aSPIPushPullByte}
+    , mGPIODisplayOn{aGPIODisplayOn}
+    , mGPIODisplayOff{aGPIODisplayOff}
     , mImgBuf{std::byte{0}}
     , mIsLineDirty{false}
 {
@@ -144,18 +173,29 @@ LS013B7::LS013B7(
 }
 
 
+void LS013B7::DisplayOn() noexcept
+{
+    mGPIODisplayOn();
+}
+
+
+void LS013B7::DisplayOff() noexcept
+{
+    mGPIODisplayOff();
+}
+
 // *****************************************************************************
 //                              LOCAL FUNCTIONS
 // *****************************************************************************
 
-LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2) noexcept
+LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2, bool aIsActive) noexcept
 {
     Line lRow{std::byte{0}};
     auto lBitIndex{aX1 % sPixelsPerByte};
 
     for (auto lX{aX1}; lX <= aX2; ++lX) {
         auto lByteIndex {lX / sPixelsPerByte};
-        lRow[lByteIndex] |= std::byte{0x1} << lBitIndex;
+        lRow[lByteIndex] |= std::byte{aIsActive} << lBitIndex;
         ++lBitIndex;
         if (lBitIndex >= sPixelsPerByte) {
             lBitIndex = 0;
@@ -167,29 +207,118 @@ LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2) noexcept
 
 
 void LS013B7::PixelDraw(
-    const int32_t aColumnIx,
-    const int32_t aRowIx,
+    const int32_t aColumnIndex,
+    const int32_t aRowIndex,
     [[maybe_unused]] const uint32_t aColor
+) noexcept
+{
+    auto& lRow{mImgBuf[aRowIndex]};
+    const auto lByteIndex{aColumnIndex / sPixelsPerByte};
+    const auto lBitIndex{aColumnIndex % sPixelsPerByte};
+    const auto lColorByte{std::byte{static_cast<uint8_t>(aColor)} << lBitIndex};
+    lRow[lByteIndex] = (lRow[lByteIndex] & ~lColorByte) | lColorByte;
+
+    mIsLineDirty[aRowIndex] = true;
+}
+
+
+void LS013B7::PixelDrawMultiple(
+    const int32_t aColumnIx, const int32_t aRowIx,
+    const int32_t i32X0, const int32_t aPixelCount,
+    const int32_t aBitsPerPixel,
+    const uint8_t * const aSourceData,
+    const uint8_t * const aColorPalette
 ) noexcept
 {
     auto& lRow{mImgBuf[aRowIx]};
     const auto lByteIndex{aColumnIx / sPixelsPerByte};
     const auto lBitIndex{aColumnIx % sPixelsPerByte};
-    lRow[lByteIndex] |= std::byte{0x1} << lBitIndex;
 
-    mIsLineDirty[aRowIx] = true;
+    switch (aBitsPerPixel & 0xFF)
+    {
+        case 1: PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette); break;
+        case 4: break;
+        case 8: PixelDrawMultiple8BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette); break;
+        default: // Invalid number of pixels per byte.
+            break;
+    }
 }
 
 
-void LS013B7::PixelDrawMultiple(
-    [[maybe_unused]] const int32_t i32X, [[maybe_unused]] const int32_t i32Y,
-    [[maybe_unused]] const int32_t i32X0, [[maybe_unused]] const int32_t i32Count,
-    [[maybe_unused]] const int32_t i32BPP,
-    [[maybe_unused]] const uint8_t * const pui8Data,
-    [[maybe_unused]] const uint8_t * const pui8Palette
+void LS013B7::PixelDrawMultiple1BPP(
+    Line& aRow,
+    const uint32_t aByteIndex,
+    const uint32_t aBitIndex,
+    const uint32_t aSourceBitIndex,
+    const int32_t aPixelCount,
+    const uint8_t *aSourceData,
+    const uint8_t *aColorPalette
 ) noexcept
 {
-    // TODO: COMPLETE.
+    auto lByteIndex{aByteIndex};
+    auto lBitIndex{static_cast<uint8_t>(aBitIndex)};
+    auto lSourceBitIndex{static_cast<uint8_t>(aSourceBitIndex)};
+    auto lPixelCount{aPixelCount};
+    auto lSourceData{aSourceData};
+    while (lPixelCount) {
+        const std::byte lPixelByte{*lSourceData};
+
+        for (; (lSourceBitIndex < 8) && lPixelCount; ++lSourceBitIndex, --lPixelCount) {
+
+            const auto lColorByte{std::byte{static_cast<uint8_t>(1 << lBitIndex)}};
+            const auto lColorIndex{std::to_integer<unsigned int>((lPixelByte >> (7 - lSourceBitIndex)) & std::byte{1})};
+            const auto lColorValue{
+                std::byte{static_cast<uint8_t>(((reinterpret_cast<const uint32_t*>(aColorPalette)[lColorIndex]) << lBitIndex))}
+            };
+
+            aRow[lByteIndex] = (aRow[lByteIndex] & ~lColorByte) | lColorValue;
+
+            if (--lBitIndex == 0) {
+                lBitIndex = 7;
+                ++lSourceData;
+            }
+        }
+
+        lSourceBitIndex = 0;
+        ++lByteIndex;
+    }
+}
+
+
+
+void LS013B7::PixelDrawMultiple8BPP(
+    Line& aRow,
+    const uint32_t aByteIndex,
+    const uint32_t aBitIndex,
+    const uint32_t aSourceBitIndex,
+    const int32_t aPixelCount,
+    const uint8_t *aSourceData,
+    const uint8_t *aColorPalette
+) noexcept
+{
+    auto lByteIndex{aByteIndex};
+    auto lBitIndex{static_cast<uint8_t>(aBitIndex)};
+    [[maybe_unused]] auto lSourceBitIndex{static_cast<uint8_t>(aSourceBitIndex)};
+    auto lPixelCount{aPixelCount};
+    auto lSourceData{aSourceData};
+
+    while (lPixelCount) {
+
+        // Get the next byte of pixel data and extract the corresponding entry from the palette.
+        const auto lColorByte{std::byte{static_cast<uint8_t>(1 << lBitIndex)}};
+        const auto lColorIndex{*lSourceData * 3};
+        const auto lColorValue{*(reinterpret_cast<const uint32_t*>(aColorPalette + lColorIndex)) & 0x00FFFFFF};
+
+        aRow[lByteIndex] = (aRow[lByteIndex] & ~lColorByte)
+            | std::byte{static_cast<uint8_t>(DPYCOLORTRANSLATE(lColorValue) << lBitIndex)};
+
+        if (--lBitIndex == 0) {
+            lBitIndex = 7;
+            ++lSourceData;
+        }
+
+        --lPixelCount;
+    }
 }
 
 
@@ -197,10 +326,10 @@ void LS013B7::LineDrawH(
     const int32_t aX1,
     const int32_t aX2,
     const int32_t aRowIx,
-    [[maybe_unused]] const uint32_t aColor
+    const uint32_t aColor
 ) noexcept
 {
-    const auto lNewRow{CreateRow(aX1, aX2)};
+    const auto lNewRow{CreateRow(aX1, aX2, aColor)};
     auto& lRow{mImgBuf[aRowIx]};
     std::transform(
         lNewRow.cbegin(), lNewRow.cend(),
@@ -216,24 +345,24 @@ void LS013B7::LineDrawV(
     const int32_t aColumnIx,
     const int32_t aY1,
     const int32_t aY2,
-    [[maybe_unused]] const uint32_t ui32Value
+    const uint32_t aColor
 ) noexcept
 {
     const auto lByteIx{aColumnIx / sPixelsPerByte};
     const auto lBitIx{aColumnIx % sPixelsPerByte};
     for (auto lRowIx{aY1}; lRowIx <= aY2; ++lRowIx) {
         auto& lRow{mImgBuf[lRowIx]};
-        lRow[lByteIx] |= std::byte{0x1} << lBitIx;
+        lRow[lByteIx] |= (aColor ? std::byte{0x1} : std::byte{0x0}) << lBitIx;
         mIsLineDirty[lRowIx] = true;
     }
 }
 
 
-void LS013B7::RectFill(const tRectangle * const aRectangle, [[maybe_unused]] const uint32_t ui32Value) noexcept
+void LS013B7::RectFill(const tRectangle * const aRectangle, const uint32_t aColor) noexcept
 {
     // Fill all the horizontal lines.
     // Send all lines to display.
-    const auto lNewRow{CreateRow(aRectangle->i16XMin, aRectangle->i16XMax)};
+    const auto lNewRow{CreateRow(aRectangle->i16XMin, aRectangle->i16XMax, aColor)};
     for (auto lRowIx{aRectangle->i16YMin}; lRowIx <= aRectangle->i16YMax; ++lRowIx) {
         auto& lRow{mImgBuf[lRowIx]};
         std::transform(
@@ -246,9 +375,29 @@ void LS013B7::RectFill(const tRectangle * const aRectangle, [[maybe_unused]] con
 }
 
 
-auto LS013B7::ColorTranslate([[maybe_unused]] const uint32_t ui32Value) noexcept -> uint32_t
+//*****************************************************************************
+//
+// Translates a 24-bit RGB color to a display driver-specific color.
+//
+// \param c is the 24-bit RGB color.  The least-significant byte is the blue
+// channel, the next byte is the green channel, and the third byte is the red
+// channel.
+//
+// This macro translates a 24-bit RGB color into a value that can be written
+// into the display's frame buffer in order to reproduce that color, or the
+// closest possible approximation of that color.
+//
+// \return Returns the display-driver specific color.
+//
+//*****************************************************************************
+auto LS013B7::ColorTranslate(const uint32_t ui32Value) noexcept -> uint32_t
 {
-    return 0;
+    return (
+        ((((ui32Value & 0x00ff0000) >> 16) * 19661) +
+        (((ui32Value & 0x0000ff00) >> 8) * 38666) +
+        ((ui32Value & 0x000000ff) * 7209)) /
+        (65536 * 128)
+    );
 }
 
 
@@ -263,18 +412,6 @@ void LS013B7::Flush() noexcept
         ++lRowIx;
     }
     SetDisplayMode();
-}
-
-
-void LS013B7::DisplayOn() noexcept
-{
-    // Set GPIO.
-}
-
-
-void LS013B7::DisplayOff() noexcept
-{
-    // Set GPIO.
 }
 
 

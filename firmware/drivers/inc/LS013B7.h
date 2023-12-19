@@ -37,7 +37,6 @@
 
 // Standard library.
 #include <array>
-//#include <vector>
 
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
@@ -50,6 +49,8 @@
 namespace Drivers
 {
 
+using GPIOOnOff = void (&)();
+
 
 //! \brief Non-Volatile Memory interface.
 struct LS013B7 final
@@ -60,7 +61,9 @@ public:
         CoreLink::SPIAssert aSPIAssert,
         CoreLink::SPIAssert aSPIDeassert,
         CoreLink::SPIWr aSPIWr,
-        CoreLink::PushPullByte aPushPullByte
+        CoreLink::PushPullByte aPushPullByte,
+        GPIOOnOff aGPIODisplayOn,
+        GPIOOnOff aGPIODisplayOff
     ) noexcept;
 
     void DisplayOn() noexcept;
@@ -72,13 +75,31 @@ private:
     static constexpr auto sPixelsPerByte{8};
     using Line = std::array<std::byte, sWidth / sPixelsPerByte>;
 
-    Line CreateRow(int32_t aX1, int32_t aX2) noexcept;
+    Line CreateRow(int32_t aX1, int32_t aX2, bool aIsActive) noexcept;
 
     void PixelDraw(int32_t i32X, int32_t i32Y, uint32_t ui32Value) noexcept;
     void PixelDrawMultiple(
-        int32_t i32X, int32_t i32Y,
-        int32_t i32X0, int32_t i32Count,
-        int32_t i32BPP,
+        const int32_t aColumnIx, const int32_t aRowIx,
+        const int32_t i32X0, const int32_t aPixelCount,
+        const int32_t i32BPP,
+        const uint8_t * const pui8Data,
+        const uint8_t * const pui8Palette
+    ) noexcept;
+    void PixelDrawMultiple1BPP(
+        Line& aRow,
+        const uint32_t aByteIndex,
+        uint32_t aBitIndex,
+        uint32_t aSourceBitIndex,
+        const int32_t aPixelCount,
+        const uint8_t *pui8Data,
+        const uint8_t *pui8Palette
+    ) noexcept;
+    void PixelDrawMultiple8BPP(
+        Line& aRow,
+        const uint32_t aByteIndex,
+        uint32_t aBitIndex,
+        uint32_t aSourceBitIndex,
+        const int32_t aPixelCount,
         const uint8_t *pui8Data,
         const uint8_t *pui8Palette
     ) noexcept;
@@ -98,6 +119,9 @@ private:
     CoreLink::SPIAssert mSPIDeassert;
     CoreLink::SPIWr mSPIWr;
     CoreLink::PushPullByte mSPIPushPullByte;
+
+    GPIOOnOff mGPIODisplayOn;
+    GPIOOnOff mGPIODisplayOff;
 
     std::array<Line, sHeight> mImgBuf;
     std::array<bool, sHeight> mIsLineDirty;
