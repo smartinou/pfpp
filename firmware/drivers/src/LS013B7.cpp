@@ -42,30 +42,6 @@
 //                            FUNCTION PROTOTYPES
 // *****************************************************************************
 
-//*****************************************************************************
-//
-// Translates a 24-bit RGB color to a display driver-specific color.
-//
-// \param c is the 24-bit RGB color.  The least-significant byte is the blue
-// channel, the next byte is the green channel, and the third byte is the red
-// channel.
-//
-// This macro translates a 24-bit RGB color into a value that can be written
-// into the display's frame buffer in order to reproduce that color, or the
-// closest possible approximation of that color.
-//
-// \return Returns the display-driver specific color.
-//
-//*****************************************************************************
-static constexpr uint32_t DPYCOLORTRANSLATE(const uint32_t aColor) {
-    return
-        (((((aColor & 0x00ff0000) >> 16) * 19661) +
-            (((aColor & 0x0000ff00) >> 8) * 38666) +
-                ((aColor & 0x000000ff) * 7209)
-        ) / (65536 * 128)
-    );
-}
-
 // *****************************************************************************
 //                             GLOBAL VARIABLES
 // *****************************************************************************
@@ -310,7 +286,7 @@ void LS013B7::PixelDrawMultiple8BPP(
         const auto lColorValue{*(reinterpret_cast<const uint32_t*>(aColorPalette + lColorIndex)) & 0x00FFFFFF};
 
         aRow[lByteIndex] = (aRow[lByteIndex] & ~lColorByte)
-            | std::byte{static_cast<uint8_t>(DPYCOLORTRANSLATE(lColorValue) << lBitIndex)};
+            | std::byte{static_cast<uint8_t>(ColorTranslate(lColorValue) << lBitIndex)};
 
         if (--lBitIndex == 0) {
             lBitIndex = 7;
