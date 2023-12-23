@@ -10,6 +10,9 @@ project:
     #- component: Quantum-Leaps::Utility&QP/C++:QUTest
     - component: Quantum-Leaps::Utility&QP/C++:Ports:Native&QV
 
+    #- component: Texas-Instruments::Utility&Peripheral drivers:Peripheral Driver Library
+    - component: Texas-Instruments::Graphics&Graphics:Core Library
+
   add-path:
     - "../../firmware"
 
@@ -30,6 +33,7 @@ project:
         - file: ../../firmware/qp_ao/codegen/RTCC_AOs.cpp
         - file: ../../firmware/utils/shell/Shell.cpp
         - file: ../../firmware/drivers/src/DS3234.cpp
+        - file: ../../firmware/drivers/src/LS013B7.cpp
         - file: ../../firmware/drivers/tm4c/TB6612.cpp
         - file: ../../firmware/corelink/tm4c/GPIO.cpp
         - file: ../../firmware/corelink/tm4c/SPISlaveCfg.cpp

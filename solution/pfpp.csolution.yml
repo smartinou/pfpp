@@ -15,6 +15,7 @@ solution:
     - pack: ARM::CMSIS-FreeRTOS
     - pack: SEGGER::CMSIS-embOS
     - pack: lwIP::lwIP
+    - pack: Texas-Instruments::TivaWare
 
   build-types:
     - type: Debug
