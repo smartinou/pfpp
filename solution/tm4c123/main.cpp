@@ -38,8 +38,8 @@
 
 // Firmware Libraries.
 #include "inc/FeedCfg.h"
-#include "drivers/inc/IMotorControl.h"
 #include "drivers/inc/DS3234.h"
+#include "drivers/inc/TB6612.h"
 
 // CoreLink Library.
 #include "corelink/inc/SPIMasterDev.h"
@@ -65,9 +65,9 @@
 //                      DEFINED CONSTANTS AND MACROS
 // *****************************************************************************
 
-static constexpr uint32_t LED_RED{0x1U << 1};
-static constexpr uint32_t LED_GREEN{0x1U << 3};
-static constexpr uint32_t LED_BLUE{0x1U << 2};
+//static constexpr uint32_t LED_RED{0x1U << 1};
+//static constexpr uint32_t LED_GREEN{0x1U << 3};
+//static constexpr uint32_t LED_BLUE{0x1U << 2};
 
 static constexpr uint32_t BTN_SW1{0x1U << 4};
 static constexpr uint32_t BTN_SW2{0x1U << 0};
@@ -75,7 +75,7 @@ static constexpr uint32_t BTN_SW2{0x1U << 0};
 // *****************************************************************************
 //                         TYPEDEFS AND STRUCTURES
 // *****************************************************************************
-
+#if 0
 class DummyMotorControl final
     : public Drivers::IMotorControl
 {
@@ -95,7 +95,7 @@ class DummyMotorControl final
         ROM_GPIOPinWrite(GPIOF_BASE, LED_RED, 0);
     }
 };
-
+#endif
 // *****************************************************************************
 //                            FUNCTION PROTOTYPES
 // *****************************************************************************
@@ -130,8 +130,18 @@ static constexpr QP::QSpyId sOnFlush{0U};
 
 #endif // Q_SPY
 
-static constexpr CoreLink::GPIO lRTCCInt{GPIOA_BASE, GPIO_PIN_4};
-static constexpr CoreLink::GPIO lRTCCRst{GPIOF_BASE, GPIO_PIN_4};
+static constexpr CoreLink::GPIO sLEDRed{GPIOF_BASE, GPIO_PIN_1};
+static constexpr CoreLink::GPIO sLEDGreen{GPIOF_BASE, GPIO_PIN_3};
+static constexpr CoreLink::GPIO sLEDBlue{GPIOF_BASE, GPIO_PIN_2};
+
+static constexpr auto sButton1Pin{GPIO_PIN_4};
+static constexpr auto sButton2Pin{GPIO_PIN_0};
+
+static constexpr CoreLink::GPIO sButton1{GPIOF_BASE, sButton1Pin};
+static constexpr CoreLink::GPIO sButton2{GPIOF_BASE, sButton2Pin};
+
+static constexpr CoreLink::GPIO sRTCCInt{GPIOA_BASE, GPIO_PIN_4};
+static constexpr CoreLink::GPIO sRTCCRst{GPIOF_BASE, GPIO_PIN_4};
 
 // PB4: SSI0CLK
 // PB6: SSI0RX (MISO)
@@ -157,6 +167,10 @@ static constexpr CoreLink::SPISlaveCfg sRTCCSPISlaveCfg{
     .mDataWidth{8},
     .mCSn{GPIOA_BASE, GPIO_PIN_3}
 };
+
+static constexpr CoreLink::GPIO sIn1{GPIOA_BASE, GPIO_PIN_0};
+static constexpr CoreLink::GPIO sIn2{GPIOA_BASE, GPIO_PIN_0};
+static constexpr CoreLink::GPIO sPWM{GPIOA_BASE, GPIO_PIN_0};
 
 // *****************************************************************************
 //                            EXPORTED FUNCTIONS
@@ -193,9 +207,10 @@ int main()
     };
 
     static constexpr auto sAlarmID{0};
+    auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sIn1, sIn2, sPWM)};
     PFPP::AO::Mgr lPFPPAO{
         sAlarmID,
-        std::make_unique<DummyMotorControl>(),
+        std::move(lMotorControl),
         lToTicksFct
     };
 
@@ -236,23 +251,29 @@ static void Init()
 
     // Enable clock for to the peripherals used by this application...
     // Configure the LEDs and push buttons.
-    ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-    ROM_GPIODirModeSet(GPIOF_BASE, (LED_RED | LED_GREEN | LED_BLUE), GPIO_DIR_MODE_IN);
-    ROM_GPIOPinWrite(GPIOF_BASE, (LED_RED | LED_GREEN | LED_BLUE), 0);
+    sLEDRed.EnableSysCtlPeripheral();
+    ROM_GPIODirModeSet(sLEDRed.mBaseAddr, sLEDRed.mPin, GPIO_DIR_MODE_IN);
+    sLEDGreen.EnableSysCtlPeripheral();
+    ROM_GPIODirModeSet(sLEDGreen.mBaseAddr, sLEDGreen.mPin, GPIO_DIR_MODE_IN);
+    sLEDBlue.EnableSysCtlPeripheral();
+    ROM_GPIODirModeSet(sLEDBlue.mBaseAddr, sLEDBlue.mPin, GPIO_DIR_MODE_IN);
+
+    ROM_GPIOPinWrite(sLEDRed.mBaseAddr, sLEDRed.mPin, 0);
+    ROM_GPIOPinWrite(sLEDGreen.mBaseAddr, sLEDGreen.mPin, 0);
+    ROM_GPIOPinWrite(sLEDBlue.mBaseAddr, sLEDBlue.mPin, 0);
 
     // Configure the Buttons:
     // PF0 can be used as NMI, and requires unlocking Commit Register (CR)
     // before any write to PUR, PDR, PAFSEL, PDEN.
     GPIOF->LOCK = 0x4c4f434b;
-    GPIOF->CR |= BTN_SW2;
-    //GPIOF->PDEN |= BTN_SW2;
+    GPIOF->CR |= sButton2.mPin;
+    //GPIOF->PDEN |= sButton2.mPin;
 
     // Set direction: input.
-    //GPIOF->DIR &= ~(BTN_SW1 | BTN_SW2);
-    ROM_GPIODirModeSet(GPIOF_BASE, (BTN_SW1 | BTN_SW2), GPIO_DIR_MODE_IN);
+    ROM_GPIODirModeSet(sButton1.mBaseAddr, (sButton1.mPin | sButton2.mPin), GPIO_DIR_MODE_IN);
     ROM_GPIOPadConfigSet(
-        GPIOF_BASE,
-        (BTN_SW1 | BTN_SW2),
+        sButton1.mBaseAddr,
+        (sButton1.mPin | sButton2.mPin),
         GPIO_STRENGTH_2MA,
         GPIO_PIN_TYPE_STD_WPU
     );
@@ -301,8 +322,8 @@ void QP::QV::onIdle()
 {
     // CAUTION: called with interrupts DISABLED, NOTE01
     // Toggle LED2 on and then off, see NOTE01.
-    ROM_GPIOPinWrite(GPIOF_BASE, LED_GREEN, LED_GREEN);
-    ROM_GPIOPinWrite(GPIOF_BASE, LED_GREEN, 0);
+    ROM_GPIOPinWrite(sLEDGreen.mBaseAddr, sLEDGreen.mPin, sLEDGreen.mPin);
+    ROM_GPIOPinWrite(sLEDGreen.mBaseAddr, sLEDGreen.mPin, 0);
 
 #ifdef NDEBUG
     // Put the CPU and peripherals to the low-power mode.
@@ -458,7 +479,7 @@ static void DebounceSwitches()
     static std::array<PinType, sStateDepth> sPinsState{0};
     static PinType sPreviousDebounce{0};
     static decltype(sPinsState.size()) lStateIx{0};
-    sPinsState.at(lStateIx) = ~ROM_GPIOPinRead(GPIOF_BASE, (BTN_SW1 | BTN_SW2));//GPIOF->RESERVED[BTN_SW1 | BTN_SW2];
+    sPinsState.at(lStateIx) = ~ROM_GPIOPinRead(sButton1.mBaseAddr, (sButton1.mPin | sButton2.mPin));
     ++lStateIx;
     if (lStateIx >= sPinsState.size()) {
         lStateIx = 0;
@@ -469,7 +490,7 @@ static void DebounceSwitches()
         std::accumulate(
             sPinsState.cbegin(),
             sPinsState.cend(),
-            (BTN_SW1 | BTN_SW2),
+            (sButton1.mPin | sButton2.mPin),
             std::bit_and<PinType>()
         )
     };
@@ -477,11 +498,11 @@ static void DebounceSwitches()
     // What changed now? Look for pressed states.
     if ((~sPreviousDebounce) & lCurrentDebounce) {
 
-        if (lCurrentDebounce & BTN_SW1) {
+        if (lCurrentDebounce & sButton1.mPin) {
             static const BSP::Event::ButtonEvt sOnEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
-        if (lCurrentDebounce & BTN_SW2) {
+        if (lCurrentDebounce & sButton2.mPin) {
             static const BSP::Event::ButtonEvt sOnEvt{BSP_TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
@@ -489,7 +510,7 @@ static void DebounceSwitches()
 
     // Look for released states.
     if (sPreviousDebounce & ~lCurrentDebounce) {
-        if ((sPreviousDebounce) & BTN_SW1){
+        if ((sPreviousDebounce) & sButton1.mPin) {
             static const BSP::Event::ButtonEvt sOffEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
             QP::QF::PUBLISH(&sOffEvt, &sSysTick_Handler);
         }
