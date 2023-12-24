@@ -39,6 +39,7 @@
 // Firmware Libraries.
 #include "inc/FeedCfg.h"
 #include "drivers/inc/DS3234.h"
+#include "drivers/inc/LS013B7.h"
 #include "drivers/inc/TB6612.h"
 
 // CoreLink Library.
@@ -65,53 +66,20 @@
 //                      DEFINED CONSTANTS AND MACROS
 // *****************************************************************************
 
-//static constexpr uint32_t LED_RED{0x1U << 1};
-//static constexpr uint32_t LED_GREEN{0x1U << 3};
-//static constexpr uint32_t LED_BLUE{0x1U << 2};
-
-static constexpr uint32_t BTN_SW1{0x1U << 4};
-static constexpr uint32_t BTN_SW2{0x1U << 0};
-
 // *****************************************************************************
 //                         TYPEDEFS AND STRUCTURES
 // *****************************************************************************
-#if 0
-class DummyMotorControl final
-    : public Drivers::IMotorControl
-{
-    // IMotorControl interface.
-    void TurnOnCW([[maybe_unused]] unsigned int aDutyCycle = 100) const
-    {
-        ROM_GPIOPinWrite(GPIOF_BASE, LED_RED, LED_RED);
-    }
 
-    void TurnOnCCW([[maybe_unused]] unsigned int aDutyCycle = 100) const
-    {
-        // Do nothing.
-    }
-
-    void TurnOff() const
-    {
-        ROM_GPIOPinWrite(GPIOF_BASE, LED_RED, 0);
-    }
-};
-#endif
 // *****************************************************************************
 //                            FUNCTION PROTOTYPES
 // *****************************************************************************
 
 static void Init();
+static void StartMgr() noexcept;
+static void StartLCD() noexcept;
+static void StartRTCC() noexcept;
+
 static void DebounceSwitches();
-
-static void SPIReadFromRTCC(
-    std::span<std::byte> aData,
-    std::optional<std::byte> aAddr = std::nullopt
-) noexcept;
-
-static void SPIWriteToRTCC(
-    std::span<const std::byte> aData,
-    std::optional<std::byte> aAddr = std::nullopt
-) noexcept;
 
 // *****************************************************************************
 //                             GLOBAL VARIABLES
@@ -141,36 +109,11 @@ static constexpr CoreLink::GPIO sButton1{GPIOF_BASE, sButton1Pin};
 static constexpr CoreLink::GPIO sButton2{GPIOF_BASE, sButton2Pin};
 
 static constexpr CoreLink::GPIO sRTCCInt{GPIOA_BASE, GPIO_PIN_4};
-static constexpr CoreLink::GPIO sRTCCRst{GPIOF_BASE, GPIO_PIN_4};
-
-// PB4: SSI0CLK
-// PB6: SSI0RX (MISO)
-// PB7: SSI0TX (MOSI)
-static constexpr CoreLink::SSIGPIO sSSI2GPIO{
-    .mClkPinCfg{GPIO_PB4_SSI2CLK},
-    .mDat0PinCfg{GPIO_PB6_SSI2RX},
-    .mDat1PinCfg{GPIO_PB7_SSI2TX},
-
-    .mClkPin{GPIOB_BASE, GPIO_PIN_4},
-    .mRxPin{GPIOB_BASE, GPIO_PIN_6},
-    .mTxPin{GPIOB_BASE, GPIO_PIN_7}
-};
 
 static constexpr CoreLink::SPIMasterDev sSPIMasterDev{
     SSI2_BASE,
     50000000UL
 };
-
-static constexpr CoreLink::SPISlaveCfg sRTCCSPISlaveCfg{
-    .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
-    .mBitRate{4000000UL},
-    .mDataWidth{8},
-    .mCSn{GPIOA_BASE, GPIO_PIN_3}
-};
-
-static constexpr CoreLink::GPIO sIn1{GPIOA_BASE, GPIO_PIN_0};
-static constexpr CoreLink::GPIO sIn2{GPIOA_BASE, GPIO_PIN_0};
-static constexpr CoreLink::GPIO sPWM{GPIOA_BASE, GPIO_PIN_0};
 
 // *****************************************************************************
 //                            EXPORTED FUNCTIONS
@@ -198,39 +141,9 @@ int main()
 
     Init();
 
-    using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
-    auto lToTicksFct{
-        [](const auto aDuration)
-        {
-            return std::chrono::duration_cast<Ticks>(aDuration).count();
-        }
-    };
-
-    static constexpr auto sAlarmID{0};
-    auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sIn1, sIn2, sPWM)};
-    PFPP::AO::Mgr lPFPPAO{
-        sAlarmID,
-        std::move(lMotorControl),
-        lToTicksFct
-    };
-
-    static std::array<const QP::QEvt*, 10> sEventQSto{};
-    lPFPPAO.start(
-        1U,
-        sEventQSto.data(),
-        sEventQSto.size(),
-        nullptr, 0U
-    );
-
-    static std::array<const QP::QEvt*, 10> sRTCCEventQSto{};
-    auto lRTCC{std::make_unique< Drivers::DS3234>(SPIReadFromRTCC, SPIWriteToRTCC)};
-    RTCC::AO::Mgr lRTCCAO{std::move(lRTCC)};
-    lRTCCAO.start(
-        2U,
-        sRTCCEventQSto.data(),
-        sRTCCEventQSto.size(),
-        nullptr, 0U
-    );
+    StartMgr();
+    StartLCD();
+    StartRTCC();
 
     return QP::QF::run();
 }
@@ -279,12 +192,133 @@ static void Init()
     );
 
     // RTCC pins, SPI peripheral.
+    // PB4: SSI0CLK
+    // PB6: SSI0RX (MISO)
+    // PB7: SSI0TX (MOSI)
+    static constexpr CoreLink::SSIGPIO sSSI2GPIO{
+        .mClkPinCfg{GPIO_PB4_SSI2CLK},
+        .mDat0PinCfg{GPIO_PB6_SSI2RX},
+        .mDat1PinCfg{GPIO_PB7_SSI2TX},
+
+        .mClkPin{GPIOB_BASE, GPIO_PIN_4},
+        .mRxPin{GPIOB_BASE, GPIO_PIN_6},
+        .mTxPin{GPIOB_BASE, GPIO_PIN_7}
+    };
+
     sSSI2GPIO.SetPins();
     ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI2);
 
     // Call QS::onStartup().
     // Has to be setup early for dictionary entries to be set.
     QS_INIT(nullptr);
+}
+
+
+static void StartMgr() noexcept
+{
+    // TB6612 Motor Controller pins.
+    [[maybe_unused]] static constexpr CoreLink::GPIO sAIn1{GPIOD_BASE, GPIO_PIN_7};
+    [[maybe_unused]] static constexpr CoreLink::GPIO sAIn2{GPIOA_BASE, GPIO_PIN_2};
+    [[maybe_unused]] static constexpr CoreLink::GPIO sPWMA{GPIOF_BASE, GPIO_PIN_3};
+
+    static constexpr CoreLink::GPIO sBIn1{GPIOC_BASE, GPIO_PIN_7};
+    static constexpr CoreLink::GPIO sBIn2{GPIOC_BASE, GPIO_PIN_6};
+    static constexpr CoreLink::GPIO sPWMB{GPIOF_BASE, GPIO_PIN_2};
+    [[maybe_unused]] static constexpr CoreLink::GPIO sSTBYn{GPIOD_BASE, GPIO_PIN_6};
+
+    sBIn1.EnableSysCtlPeripheral();
+    sBIn2.EnableSysCtlPeripheral();
+    sPWMB.EnableSysCtlPeripheral();
+
+    static constexpr auto sAlarmID{0};
+    auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB)};
+    PFPP::AO::Mgr lPFPPAO{
+        sAlarmID,
+        std::move(lMotorControl),
+        [](const auto aDuration)
+        {
+            // Converts duration to ticks.
+            using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
+            return std::chrono::duration_cast<Ticks>(aDuration).count();
+        }
+    };
+
+    static std::array<const QP::QEvt*, 10> sEventQSto{};
+    lPFPPAO.start(
+        1U,
+        sEventQSto.data(),
+        sEventQSto.size(),
+        nullptr, 0U
+    );
+}
+
+
+static void StartLCD() noexcept
+{
+    [[maybe_unused]] static constexpr CoreLink::GPIO sLCDPwr{GPIOB_BASE, GPIO_PIN_5};
+    static constexpr CoreLink::GPIO sLCDDisp{GPIOE_BASE, GPIO_PIN_4};
+    [[maybe_unused]] static constexpr CoreLink::GPIO sLCDExtComIn{GPIOB_BASE, GPIO_PIN_2};
+
+    sLCDDisp.EnableSysCtlPeripheral();
+
+    static constexpr CoreLink::SPISlaveCfg sLCDSPISlaveCfg{
+        .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
+        .mBitRate{1000000UL},
+        .mDataWidth{8},
+        .mCSn{GPIOE_BASE, GPIO_PIN_5}
+    };
+
+    // [MG] CAN BE MADE CONDITIONAL TO SENSING LCDPwr PIN.
+    auto lLCD{
+        std::make_unique<Drivers::LS013B7>(
+            []() noexcept {sLCDSPISlaveCfg.mCSn.AssertCSn();},
+            []() noexcept {sLCDSPISlaveCfg.mCSn.DeassertCSn();},
+            [](std::span<const std::byte> aData, std::optional<std::byte> aAddr) noexcept
+            {
+                sSPIMasterDev.WrData(sLCDSPISlaveCfg, aData, aAddr);
+            },
+            [](const std::byte aByte) noexcept
+            {
+                return sSPIMasterDev.PushPullByte(aByte);
+            },
+            []() noexcept {ROM_GPIOPinWrite(sLCDDisp.mBaseAddr, sLCDDisp.mPin, sLCDDisp.mPin);},
+            []() noexcept {ROM_GPIOPinWrite(sLCDDisp.mBaseAddr, sLCDDisp.mPin, 0);}
+        )
+    };
+}
+
+
+static void StartRTCC() noexcept
+{
+    [[maybe_unused]] static constexpr CoreLink::GPIO sRTCCRst{GPIOF_BASE, GPIO_PIN_4};
+
+    static constexpr CoreLink::SPISlaveCfg sRTCCSPISlaveCfg{
+        .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
+        .mBitRate{4000000UL},
+        .mDataWidth{8},
+        .mCSn{GPIOA_BASE, GPIO_PIN_3}
+    };
+
+    static std::array<const QP::QEvt*, 10> sRTCCEventQSto{};
+    auto lRTCC{
+        std::make_unique< Drivers::DS3234>(
+            [](std::span<std::byte> aData, std::optional<std::byte> aAddr) noexcept
+            {
+                sSPIMasterDev.RdData(sRTCCSPISlaveCfg, aData, aAddr);
+            },
+            [](std::span<const std::byte> aData, std::optional<std::byte> aAddr) noexcept
+            {
+                sSPIMasterDev.WrData(sRTCCSPISlaveCfg, aData, aAddr);
+            }
+        )
+    };
+    RTCC::AO::Mgr lRTCCAO{std::move(lRTCC)};
+    lRTCCAO.start(
+        2U,
+        sRTCCEventQSto.data(),
+        sRTCCEventQSto.size(),
+        nullptr, 0U
+    );
 }
 
 
@@ -518,24 +552,6 @@ static void DebounceSwitches()
 
     sPreviousDebounce = lCurrentDebounce;
 }
-
-static void SPIReadFromRTCC(
-    std::span<std::byte> aData,
-    std::optional<std::byte> aAddr
-) noexcept
-{
-    sSPIMasterDev.RdData(sRTCCSPISlaveCfg, aData, aAddr);
-}
-
-
-static void SPIWriteToRTCC(
-    std::span<const std::byte> aData,
-    std::optional<std::byte> aAddr
-) noexcept
-{
-    sSPIMasterDev.WrData(sRTCCSPISlaveCfg, aData, aAddr);
-}
-
 
 // *****************************************************************************
 //                                END OF FILE

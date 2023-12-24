@@ -42,10 +42,10 @@ namespace CoreLink
 {
 
 
-using SPIRd = void (&)(std::span<std::byte> aData, std::optional<std::byte> aAddr);
-using SPIWr = void (&)(std::span<const std::byte> aData, std::optional<std::byte> aAddr);
-using SPIAssert = void (&)() noexcept;
-using PushPullByte = std::byte (&)(std::byte aByte) noexcept;
+using SPIRd = void (*)(std::span<std::byte> aData, std::optional<std::byte> aAddr) noexcept;
+using SPIWr = void (*)(std::span<const std::byte> aData, std::optional<std::byte> aAddr) noexcept;
+using SPIAssert = void (*)() noexcept;
+using PushPullByte = std::byte (*)(std::byte aByte) noexcept;
 
 
 } // namespace CoreLink

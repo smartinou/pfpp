@@ -49,11 +49,11 @@
 namespace Drivers
 {
 
-using GPIOOnOff = void (&)();
+using GPIOOnOff = void (*)() noexcept;
 
 
 //! \brief Non-Volatile Memory interface.
-struct LS013B7 final
+class LS013B7 final
     : public tDisplay
 {
 public:
