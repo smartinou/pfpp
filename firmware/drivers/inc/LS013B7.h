@@ -33,6 +33,7 @@
 // TivaWare Graphics Library.
 #include "grlib.h"
 
+#include "drivers/inc/ILCD.h"
 #include "corelink/inc/Types.h"
 
 // Standard library.
@@ -55,6 +56,7 @@ using GPIOOnOff = void (*)() noexcept;
 //! \brief Non-Volatile Memory interface.
 class LS013B7 final
     : public tDisplay
+    , public ILCD
 {
 public:
     explicit LS013B7(
@@ -66,8 +68,8 @@ public:
         GPIOOnOff aGPIODisplayOff
     ) noexcept;
 
-    void DisplayOn() noexcept;
-    void DisplayOff() noexcept;
+    void DisplayOn() const noexcept override;
+    void DisplayOff() const noexcept override;
 
 private:
     static constexpr auto sWidth{128};

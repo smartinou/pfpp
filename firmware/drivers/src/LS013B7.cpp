@@ -149,13 +149,13 @@ LS013B7::LS013B7(
 }
 
 
-void LS013B7::DisplayOn() noexcept
+void LS013B7::DisplayOn() const noexcept
 {
     mGPIODisplayOn();
 }
 
 
-void LS013B7::DisplayOff() noexcept
+void LS013B7::DisplayOff() const noexcept
 {
     mGPIODisplayOff();
 }
