@@ -67,6 +67,13 @@
 //                      DEFINED CONSTANTS AND MACROS
 // *****************************************************************************
 
+enum class ePrio
+{
+    RTCC = 1,
+    Mgr = 2,
+    GUI = 3
+};
+
 // *****************************************************************************
 //                         TYPEDEFS AND STRUCTURES
 // *****************************************************************************
@@ -76,9 +83,9 @@
 // *****************************************************************************
 
 static void Init();
-static void StartMgr() noexcept;
-static void StartLCD() noexcept;
-static void StartRTCC() noexcept;
+[[nodiscard]] static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>;
+[[nodiscard]] static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>;
+[[nodiscard]] static auto StartRTCC() noexcept -> std::unique_ptr<RTCC::AO::Mgr>;
 
 static void DebounceSwitches();
 
@@ -142,9 +149,10 @@ int main()
 
     Init();
 
-    StartMgr();
-    StartLCD();
-    StartRTCC();
+    // Keep each objects alive until the end of the program.
+    [[maybe_unused]] auto lPFPPAO{StartMgr()};
+    [[maybe_unused]] auto lGUIAO{StartGUI()};
+    [[maybe_unused]] auto lRTCCAO{StartRTCC()};
 
     return QP::QF::run();
 }
@@ -215,7 +223,7 @@ static void Init()
 }
 
 
-static void StartMgr() noexcept
+static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>
 {
     // TB6612 Motor Controller pins.
     [[maybe_unused]] static constexpr CoreLink::GPIO sAIn1{GPIOD_BASE, GPIO_PIN_7};
@@ -233,28 +241,32 @@ static void StartMgr() noexcept
 
     static constexpr auto sAlarmID{0};
     auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB)};
-    PFPP::AO::Mgr lPFPPAO{
-        sAlarmID,
-        std::move(lMotorControl),
-        [](const auto aDuration)
-        {
-            // Converts duration to ticks.
-            using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
-            return std::chrono::duration_cast<Ticks>(aDuration).count();
-        }
+    auto lPFPPAO{
+        std::make_unique<PFPP::AO::Mgr>(
+            sAlarmID,
+            std::move(lMotorControl),
+            [](const auto aDuration)
+            {
+                // Converts duration to ticks.
+                using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
+                return std::chrono::duration_cast<Ticks>(aDuration).count();
+            }
+        )
     };
 
     static std::array<const QP::QEvt*, 10> sEventQSto{};
-    lPFPPAO.start(
-        1U,
+    lPFPPAO->start(
+        static_cast<int>(ePrio::Mgr),
         sEventQSto.data(),
         sEventQSto.size(),
         nullptr, 0U
     );
+
+    return lPFPPAO;
 }
 
 
-static void StartLCD() noexcept
+static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
 {
     [[maybe_unused]] static constexpr CoreLink::GPIO sLCDExtComIn{GPIOB_BASE, GPIO_PIN_2};
 
@@ -305,19 +317,21 @@ static void StartLCD() noexcept
         )
     };
 
-    GUI::AO::Mgr lGUIAO{std::move(lLCD)};
+    auto lGUIAO{std::make_unique<GUI::AO::Mgr>(std::move(lLCD))};
 
     static std::array<const QP::QEvt*, 10> sEventQSto{};
-    lGUIAO.start(
-        3U,
+    lGUIAO->start(
+        static_cast<int>(ePrio::GUI),
         sEventQSto.data(),
         sEventQSto.size(),
         nullptr, 0U
     );
+
+    return lGUIAO;
 }
 
 
-static void StartRTCC() noexcept
+static auto StartRTCC() noexcept -> std::unique_ptr<RTCC::AO::Mgr>
 {
     [[maybe_unused]] static constexpr CoreLink::GPIO sRTCCRst{GPIOF_BASE, GPIO_PIN_4};
 
@@ -328,7 +342,6 @@ static void StartRTCC() noexcept
         .mCSn{GPIOA_BASE, GPIO_PIN_3}
     };
 
-    static std::array<const QP::QEvt*, 10> sRTCCEventQSto{};
     auto lRTCC{
         std::make_unique< Drivers::DS3234>(
             [](std::span<std::byte> aData, std::optional<std::byte> aAddr) noexcept
@@ -341,13 +354,18 @@ static void StartRTCC() noexcept
             }
         )
     };
-    RTCC::AO::Mgr lRTCCAO{std::move(lRTCC)};
-    lRTCCAO.start(
-        2U,
+
+    auto lRTCCAO{std::make_unique<RTCC::AO::Mgr>(std::move(lRTCC))};
+
+    static std::array<const QP::QEvt*, 10> sRTCCEventQSto{};
+    lRTCCAO->start(
+        static_cast<int>(ePrio::RTCC),
         sRTCCEventQSto.data(),
         sRTCCEventQSto.size(),
         nullptr, 0U
     );
+
+    return lRTCCAO;
 }
 
 
