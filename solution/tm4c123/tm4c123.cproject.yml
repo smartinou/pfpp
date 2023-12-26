@@ -28,6 +28,7 @@ project:
       files:
         - file: main.cpp
         - file: startup_TM4C123GH6PM.c
+        - file: ../../firmware/qp_ao/codegen/GUI_AOs.cpp
         - file: ../../firmware/qp_ao/codegen/PFPP_AOs.cpp
         - file: ../../firmware/qp_ao/codegen/PFPP_HSMs.cpp
         - file: ../../firmware/qp_ao/codegen/RTCC_AOs.cpp

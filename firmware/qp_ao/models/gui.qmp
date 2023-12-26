@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package name="GUI" stereotype="0x04" namespace="GUI::">
+ <package name="AOs" stereotype="0x02" namespace="AO::">
+  <class name="Mgr" superclass="qpcpp::QActive">
+   <attribute name="m_timeEvt? 0" type="QP::QTimeEvt" visibility="0x02" properties="0x00"/>
+   <attribute name="mLCD" type="std::unique_ptr&lt;Drivers::ILCD&gt;" visibility="0x02" properties="0x00">
+    <documentation>The pointer on the LCD driver to use with the graphics library.</documentation>
+   </attribute>
+   <operation name="Mgr" type="" visibility="0x00" properties="0x00">
+    <documentation>Ctor.</documentation>
+    <parameter name="aLCD" type="std::unique_ptr&lt;Drivers::ILCD&gt;"/>
+    <code>    : QActive(Q_STATE_CAST(&amp;Mgr::initial))
+    , mLCD{std::move(aLCD)}
+        //m_timeEvt(this, TIMEOUT_SIG, 0U)</code>
+   </operation>
+   <statechart properties="0x02">
+    <initial target="../1">
+     <action>static_cast&lt;void&gt;(e);</action>
+     <initial_glyph conn="4,4,5,0,4,6">
+      <action box="0,-2,10,4"/>
+     </initial_glyph>
+    </initial>
+    <state name="GUIMgr">
+     <documentation>Manager for the  GUI and graphics library.</documentation>
+     <entry brief="Init();">// Initialize the whole library.
+static constexpr tGrLibDefaults sGrLibDefaults{
+    .pfnStringRenderer{GrDefaultStringRenderer},
+    .pCodePointMapTable{nullptr},
+    .ui16Codepage{0},
+    .ui8NumCodePointMaps{0},
+    .ui8Reserved{0}
+};
+GrLibInit(&amp;sGrLibDefaults);
+
+// Initialize required contextes.
+static constexpr tContext sContext{
+    .i32Size{sizeof(tContext)},
+    .psDisplay{},
+    .sClipRegion{},
+    .ui32Foreground{},
+    .ui32Background{},
+    .psFont{},
+    .pfnStringRenderer{nullptr},
+    .pCodePointMapTable{},
+    .ui16Codepage{},
+    .ui8NumCodePointMaps{},
+    .ui8CodePointMap{},
+    .ui8Reserved{0}
+};
+
+// [MG] TROUVER MOYEN D&quot;AVOIR LE POINTEUR SUR tDisplay.
+//GrContextInit(&amp;sContext, mLCD.get());</entry>
+     <tran trig="TERMINATE">
+      <tran_glyph conn="56,10,0,-1,-6,4">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="4,10,56,24">
+      <entry box="1,2,9,2"/>
+     </state_glyph>
+    </state>
+    <state_diagram size="64,38"/>
+   </statechart>
+  </class>
+ </package>
+</package>

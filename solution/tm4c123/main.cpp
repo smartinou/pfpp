@@ -46,6 +46,7 @@
 #include "corelink/inc/SPIMasterDev.h"
 
 // QM codegen.
+#include "qp_ao/codegen/GUI_AOs.h"
 #include "qp_ao/codegen/PFPP_AOs.h"
 #include "qp_ao/codegen/PFPP_Events.h"
 #include "qp_ao/codegen/RTCC_AOs.h"
@@ -255,11 +256,30 @@ static void StartMgr() noexcept
 
 static void StartLCD() noexcept
 {
-    [[maybe_unused]] static constexpr CoreLink::GPIO sLCDPwr{GPIOB_BASE, GPIO_PIN_5};
-    static constexpr CoreLink::GPIO sLCDDisp{GPIOE_BASE, GPIO_PIN_4};
     [[maybe_unused]] static constexpr CoreLink::GPIO sLCDExtComIn{GPIOB_BASE, GPIO_PIN_2};
 
+    // Default option to power the board.
+    // See slau786.pdf, section 2.3.3 Customizable LCD Power.
+    static constexpr CoreLink::GPIO sLCDPwr{GPIOB_BASE, GPIO_PIN_5};
+    sLCDPwr.EnableSysCtlPeripheral();
+    ROM_GPIODirModeSet(sLCDPwr.mBaseAddr, sLCDPwr.mPin, GPIO_DIR_MODE_OUT);
+    ROM_GPIOPadConfigSet(
+        sLCDPwr.mBaseAddr,
+        sLCDPwr.mPin,
+        GPIO_STRENGTH_2MA,
+        GPIO_PIN_TYPE_STD
+    );
+    ROM_GPIOPinWrite(sLCDPwr.mBaseAddr, sLCDPwr.mPin, sLCDPwr.mPin);
+
+    static constexpr CoreLink::GPIO sLCDDisp{GPIOE_BASE, GPIO_PIN_4};
     sLCDDisp.EnableSysCtlPeripheral();
+    ROM_GPIODirModeSet(sLCDDisp.mBaseAddr, sLCDDisp.mPin, GPIO_DIR_MODE_OUT);
+    ROM_GPIOPadConfigSet(
+        sLCDDisp.mBaseAddr,
+        sLCDDisp.mPin,
+        GPIO_STRENGTH_2MA,
+        GPIO_PIN_TYPE_STD_WPU
+    );
 
     static constexpr CoreLink::SPISlaveCfg sLCDSPISlaveCfg{
         .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
@@ -268,7 +288,6 @@ static void StartLCD() noexcept
         .mCSn{GPIOE_BASE, GPIO_PIN_5}
     };
 
-    // [MG] CAN BE MADE CONDITIONAL TO SENSING LCDPwr PIN.
     auto lLCD{
         std::make_unique<Drivers::LS013B7>(
             []() noexcept {sLCDSPISlaveCfg.mCSn.AssertCSn();},
@@ -285,6 +304,16 @@ static void StartLCD() noexcept
             []() noexcept {ROM_GPIOPinWrite(sLCDDisp.mBaseAddr, sLCDDisp.mPin, 0);}
         )
     };
+
+    GUI::AO::Mgr lGUIAO{std::move(lLCD)};
+
+    static std::array<const QP::QEvt*, 10> sEventQSto{};
+    lGUIAO.start(
+        3U,
+        sEventQSto.data(),
+        sEventQSto.size(),
+        nullptr, 0U
+    );
 }
 
 
