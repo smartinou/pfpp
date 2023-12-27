@@ -68,6 +68,7 @@ public:
         GPIOOnOff aGPIODisplayOff
     ) noexcept;
 
+    // ILCD interface.
     void DisplayOn() const noexcept override;
     void DisplayOff() const noexcept override;
 

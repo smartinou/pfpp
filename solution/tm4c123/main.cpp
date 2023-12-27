@@ -315,7 +315,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
     };
 
     auto lLCD{
-        std::make_unique<Drivers::LS013B7>(
+        std::make_shared<Drivers::LS013B7>(
             []() noexcept {sLCDSPISlaveCfg.mCSn.AssertCSn();},
             []() noexcept {sLCDSPISlaveCfg.mCSn.DeassertCSn();},
             [](std::span<const std::byte> aData, std::optional<std::byte> aAddr) noexcept
@@ -331,7 +331,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
         )
     };
 
-    return std::make_unique<GUI::AO::Mgr>(std::move(lLCD));
+    return std::make_unique<GUI::AO::Mgr>(lLCD, lLCD);
 }
 
 

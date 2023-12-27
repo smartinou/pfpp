@@ -3,15 +3,23 @@
  <package name="AOs" stereotype="0x02" namespace="AO::">
   <class name="Mgr" superclass="qpcpp::QActive">
    <attribute name="m_timeEvt? 0" type="QP::QTimeEvt" visibility="0x02" properties="0x00"/>
-   <attribute name="mLCD" type="std::unique_ptr&lt;Drivers::ILCD&gt;" visibility="0x02" properties="0x00">
+   <attribute name="mLCD" type="std::shared_ptr&lt;Drivers::ILCD&gt;" visibility="0x02" properties="0x00">
     <documentation>The pointer on the LCD driver to use with the graphics library.</documentation>
+   </attribute>
+   <attribute name="mDisplayDrv" type="std::shared_ptr&lt;tDisplay&gt;" visibility="0x02" properties="0x00"/>
+   <attribute name="mContext{}" type="tContext" visibility="0x02" properties="0x00">
+    <documentation>Graphics lib context.</documentation>
    </attribute>
    <operation name="Mgr" type="" visibility="0x00" properties="0x00">
     <documentation>Ctor.</documentation>
-    <parameter name="aLCD" type="std::unique_ptr&lt;Drivers::ILCD&gt;"/>
+    <parameter name="aLCD" type="std::shared_ptr&lt;Drivers::ILCD&gt;"/>
+    <parameter name="aDisplayDrv" type="std::shared_ptr&lt;tDisplay&gt;"/>
     <code>    : QActive(Q_STATE_CAST(&amp;Mgr::initial))
     , mLCD{std::move(aLCD)}
-        //m_timeEvt(this, TIMEOUT_SIG, 0U)</code>
+    , mDisplayDrv{std::move(aDisplayDrv)}
+    //m_timeEvt(this, TIMEOUT_SIG, 0U)
+
+// Ctor body.</code>
    </operation>
    <statechart properties="0x02">
     <initial target="../1">
@@ -22,7 +30,8 @@
     </initial>
     <state name="GUIMgr">
      <documentation>Manager for the  GUI and graphics library.</documentation>
-     <entry brief="Init();">// Initialize the whole library.
+     <entry brief="Init();">#if 0
+// Initialize the whole library.
 static constexpr tGrLibDefaults sGrLibDefaults{
     .pfnStringRenderer{GrDefaultStringRenderer},
     .pCodePointMapTable{nullptr},
@@ -31,28 +40,14 @@ static constexpr tGrLibDefaults sGrLibDefaults{
     .ui8Reserved{0}
 };
 GrLibInit(&amp;sGrLibDefaults);
+#endif
 
 // Initialize required contextes.
-static constexpr tContext sContext{
-    .i32Size{sizeof(tContext)},
-    .psDisplay{},
-    .sClipRegion{},
-    .ui32Foreground{},
-    .ui32Background{},
-    .psFont{},
-    .pfnStringRenderer{nullptr},
-    .pCodePointMapTable{},
-    .ui16Codepage{},
-    .ui8NumCodePointMaps{},
-    .ui8CodePointMap{},
-    .ui8Reserved{0}
-};
-
 // [MG] TROUVER MOYEN D&quot;AVOIR LE POINTEUR SUR tDisplay.
-//GrContextInit(&amp;sContext, mLCD.get());</entry>
+GrContextInit(&amp;mContext, mDisplayDrv.get());</entry>
      <tran trig="TERMINATE">
       <tran_glyph conn="56,10,0,-1,-6,4">
-       <action box="0,-2,10,2"/>
+       <action box="-6,-8,10,2"/>
       </tran_glyph>
      </tran>
      <state_glyph node="4,10,56,24">
