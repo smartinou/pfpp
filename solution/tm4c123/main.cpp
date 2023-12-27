@@ -67,13 +67,6 @@
 //                      DEFINED CONSTANTS AND MACROS
 // *****************************************************************************
 
-enum class ePrio
-{
-    RTCC = 1,
-    Mgr = 2,
-    GUI = 3
-};
-
 // *****************************************************************************
 //                         TYPEDEFS AND STRUCTURES
 // *****************************************************************************
@@ -150,9 +143,42 @@ int main()
     Init();
 
     // Keep each objects alive until the end of the program.
-    [[maybe_unused]] auto lPFPPAO{StartMgr()};
-    [[maybe_unused]] auto lGUIAO{StartGUI()};
-    [[maybe_unused]] auto lRTCCAO{StartRTCC()};
+    enum class ePrio
+    {
+        RTCC = 1,
+        Mgr = 2,
+        GUI = 3
+    };
+
+    if (auto lPFPPAO{StartMgr()}; lPFPPAO) {
+        static std::array<const QP::QEvt*, 10> sEventQSto{};
+        lPFPPAO->start(
+            static_cast<int>(ePrio::Mgr),
+            sEventQSto.data(),
+            sEventQSto.size(),
+            nullptr, 0U
+        );
+    }
+
+    if (auto lGUIAO{StartGUI()}; lGUIAO) {
+        static std::array<const QP::QEvt*, 10> sEventQSto{};
+        lGUIAO->start(
+            static_cast<int>(ePrio::GUI),
+            sEventQSto.data(),
+            sEventQSto.size(),
+            nullptr, 0U
+        );
+    }
+
+    if (auto lRTCCAO{StartRTCC()}; lRTCCAO) {
+        static std::array<const QP::QEvt*, 10> sEventQSto{};
+        lRTCCAO->start(
+            static_cast<int>(ePrio::RTCC),
+            sEventQSto.data(),
+            sEventQSto.size(),
+            nullptr, 0U
+        );
+    }
 
     return QP::QF::run();
 }
@@ -241,28 +267,16 @@ static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>
 
     static constexpr auto sAlarmID{0};
     auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB)};
-    auto lPFPPAO{
-        std::make_unique<PFPP::AO::Mgr>(
-            sAlarmID,
-            std::move(lMotorControl),
-            [](const auto aDuration)
-            {
-                // Converts duration to ticks.
-                using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
-                return std::chrono::duration_cast<Ticks>(aDuration).count();
-            }
-        )
-    };
-
-    static std::array<const QP::QEvt*, 10> sEventQSto{};
-    lPFPPAO->start(
-        static_cast<int>(ePrio::Mgr),
-        sEventQSto.data(),
-        sEventQSto.size(),
-        nullptr, 0U
+    return std::make_unique<PFPP::AO::Mgr>(
+        sAlarmID,
+        std::move(lMotorControl),
+        [](const auto aDuration)
+        {
+            // Converts duration to ticks.
+            using Ticks = std::chrono::duration<QP::QTimeEvtCtr, std::ratio<1, sBSPTicksPerSecond>>;
+            return std::chrono::duration_cast<Ticks>(aDuration).count();
+        }
     );
-
-    return lPFPPAO;
 }
 
 
@@ -317,17 +331,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
         )
     };
 
-    auto lGUIAO{std::make_unique<GUI::AO::Mgr>(std::move(lLCD))};
-
-    static std::array<const QP::QEvt*, 10> sEventQSto{};
-    lGUIAO->start(
-        static_cast<int>(ePrio::GUI),
-        sEventQSto.data(),
-        sEventQSto.size(),
-        nullptr, 0U
-    );
-
-    return lGUIAO;
+    return std::make_unique<GUI::AO::Mgr>(std::move(lLCD));
 }
 
 
@@ -355,17 +359,7 @@ static auto StartRTCC() noexcept -> std::unique_ptr<RTCC::AO::Mgr>
         )
     };
 
-    auto lRTCCAO{std::make_unique<RTCC::AO::Mgr>(std::move(lRTCC))};
-
-    static std::array<const QP::QEvt*, 10> sRTCCEventQSto{};
-    lRTCCAO->start(
-        static_cast<int>(ePrio::RTCC),
-        sRTCCEventQSto.data(),
-        sRTCCEventQSto.size(),
-        nullptr, 0U
-    );
-
-    return lRTCCAO;
+    return std::make_unique<RTCC::AO::Mgr>(std::move(lRTCC));
 }
 
 
