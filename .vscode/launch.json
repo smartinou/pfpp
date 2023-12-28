@@ -1,0 +1,67 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "cwd": "${workspaceFolder}",
+            "executable": "./solution/tm4c123/out/DevBoard/Debug/tm4c123.elf",
+            "name": "Cortex-Debug with JLink",
+            "request": "launch",
+            "type": "cortex-debug",
+            // Set Mcu-Debug> Peripheral-viewer:Device Config to "device"
+            // for auto-retrieval of device name.
+            // It is possible to derive "device" and "svdPaths" with
+            // Arm Device Manager extension.
+            "device": "${command:device-manager.getDeviceName}",
+            "runToEntryPoint": "main",
+            "showDevDebugOutput": "raw",
+            "servertype": "jlink",
+            "serverpath": "JLinkGDBServerCLExe",
+            "serverArgs": ["-speed",  "1000"],
+            "interface": "swd",
+            "svdPath": "${command:device-manager.getDevicePack}",
+            "rttConfig": {
+                "enabled": false,
+                "address": "auto",
+                "decoders": [
+                    {
+                        "label": "",
+                        "port": 0,
+                        "type": "console"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "Arm Debug",
+            "type": "arm-debug",
+            "request": "launch",
+            "serialNumber": "${command:device-manager.getSerialNumber}",
+            "program": "${command:embedded-debug.getApplicationFile}",
+            "cmsisPack": "Keil::TM4C_DFP@1.1.0",
+            "deviceName": "TM4C123GH6PM",
+            "connectMode": "auto",
+            "probe": "CMSIS-DAP"
+        },
+        {
+            "name": "Embedded Debug",
+            "type": "embedded-debug",
+            "request": "launch",
+            "serialNumber": "${command:device-manager.getSerialNumber}",
+            "program": "${command:embedded-debug.getApplicationFile}",
+            "cmsisPack": "Keil::TM4C_DFP@1.1.0",
+            "deviceName": "TM4C123GH6PM",
+            "connectMode": "auto"
+        },
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

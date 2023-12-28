@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/firmware/**",
+                "${workspaceFolder}/solution/tm4c123/**",
+                "${HOME}/.cache/arm/packs/Quantum-Leaps/CMSIS-QPCPP/7.2.1/qp/qpcpp/include/*",
+                "${HOME}/.cache/arm/packs/lwIP/lwIP/2.2.0/lwip/src/include/*"
+            ],
+            "defines": ["-D QSPY"],
+            "compilerPath": "/home/martin/.vcpkg/downloads/artifacts/fd3d78d7/compilers.arm.arm.none.eabi.gcc/12.2.1-mpacbti/bin/arm-none-eabi-gcc",
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "intelliSenseMode": "linux-gcc-arm"
+        }
+    ],
+    "version": 4
+}

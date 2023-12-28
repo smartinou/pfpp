@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "optional": "cpp",
+        "array": "cpp",
+        "cstddef": "cpp"
+    },
+    "cmake.sourceDirectory": "/home/martin/repos/pfpp/solution/tm4c123/tmp/DevBoard/Debug"
+}
