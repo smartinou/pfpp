@@ -200,11 +200,30 @@ static void Init()
     // Enable clock for to the peripherals used by this application...
     // Configure the LEDs and push buttons.
     sLEDRed.EnableSysCtlPeripheral();
-    ROM_GPIODirModeSet(sLEDRed.mBaseAddr, sLEDRed.mPin, GPIO_DIR_MODE_IN);
+    ROM_GPIODirModeSet(sLEDRed.mBaseAddr, sLEDRed.mPin, GPIO_DIR_MODE_OUT);
     sLEDGreen.EnableSysCtlPeripheral();
-    ROM_GPIODirModeSet(sLEDGreen.mBaseAddr, sLEDGreen.mPin, GPIO_DIR_MODE_IN);
+    ROM_GPIODirModeSet(sLEDGreen.mBaseAddr, sLEDGreen.mPin, GPIO_DIR_MODE_OUT);
     sLEDBlue.EnableSysCtlPeripheral();
-    ROM_GPIODirModeSet(sLEDBlue.mBaseAddr, sLEDBlue.mPin, GPIO_DIR_MODE_IN);
+    ROM_GPIODirModeSet(sLEDBlue.mBaseAddr, sLEDBlue.mPin, GPIO_DIR_MODE_OUT);
+
+    ROM_GPIOPadConfigSet(
+        sLEDRed.mBaseAddr,
+        sLEDRed.mPin,
+        GPIO_STRENGTH_8MA,
+        GPIO_PIN_TYPE_STD
+    );
+    ROM_GPIOPadConfigSet(
+        sLEDGreen.mBaseAddr,
+        sLEDGreen.mPin,
+        GPIO_STRENGTH_8MA,
+        GPIO_PIN_TYPE_STD
+    );
+    ROM_GPIOPadConfigSet(
+        sLEDBlue.mBaseAddr,
+        sLEDBlue.mPin,
+        GPIO_STRENGTH_8MA,
+        GPIO_PIN_TYPE_STD
+    );
 
     ROM_GPIOPinWrite(sLEDRed.mBaseAddr, sLEDRed.mPin, 0);
     ROM_GPIOPinWrite(sLEDGreen.mBaseAddr, sLEDGreen.mPin, 0);
@@ -359,7 +378,8 @@ static auto StartRTCC() noexcept -> std::unique_ptr<RTCC::AO::Mgr>
         )
     };
 
-    return std::make_unique<RTCC::AO::Mgr>(std::move(lRTCC));
+    //return std::make_unique<RTCC::AO::Mgr>(std::move(lRTCC));
+    return nullptr;
 }
 
 
@@ -536,9 +556,7 @@ void SysTick_Handler(void)
     // Call QF Tick function.
     QP::QF::TICK_X(0U, &sSysTick_Handler);
 
-    // Perform the debouncing of buttons. The algorithm for debouncing
-    // adapted from the book "Embedded Systems Dictionary" by Jack Ganssle
-    // and Michael Barr, page 71.
+    // Perform the debouncing of buttons.
     DebounceSwitches();
     QV_ARM_ERRATUM_838869();
 }
@@ -546,6 +564,9 @@ void SysTick_Handler(void)
 } // extern "C"
 
 
+// The algorithm for debouncing
+// adapted from the book "Embedded Systems Dictionary" by Jack Ganssle
+// and Michael Barr, page 71.
 static void DebounceSwitches()
 {
     // Read current pin state into array of pin states.

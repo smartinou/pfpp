@@ -25,7 +25,7 @@
 //                              INCLUDE FILES
 // ******************************************************************************
 
-#include "corelink/inc/CoreLinkPeripheralDev.h"
+#include <cstdint>
 
 // ******************************************************************************
 //                       DEFINED CONSTANTS AND MACROS
@@ -41,8 +41,8 @@ namespace CoreLink
 
 //! \brief Describes a GPIO port pin.
 struct GPIO
-    : public PeripheralBase
 {
+    uint32_t mBaseAddr{};
     uint8_t mPin{};
     void EnableSysCtlPeripheral() const noexcept;
 };
