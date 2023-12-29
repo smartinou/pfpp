@@ -150,7 +150,7 @@ int main()
         GUI = 3
     };
 
-    if (auto lPFPPAO{StartMgr()}; lPFPPAO) {
+    if (static auto lPFPPAO{StartMgr()}; lPFPPAO) {
         static std::array<const QP::QEvt*, 10> sEventQSto{};
         lPFPPAO->start(
             static_cast<int>(ePrio::Mgr),
@@ -160,7 +160,7 @@ int main()
         );
     }
 
-    if (auto lGUIAO{StartGUI()}; lGUIAO) {
+    if (static auto lGUIAO{StartGUI()}; lGUIAO) {
         static std::array<const QP::QEvt*, 10> sEventQSto{};
         lGUIAO->start(
             static_cast<int>(ePrio::GUI),
@@ -170,7 +170,7 @@ int main()
         );
     }
 
-    if (auto lRTCCAO{StartRTCC()}; lRTCCAO) {
+    if (static auto lRTCCAO{StartRTCC()}; lRTCCAO) {
         static std::array<const QP::QEvt*, 10> sEventQSto{};
         lRTCCAO->start(
             static_cast<int>(ePrio::RTCC),
