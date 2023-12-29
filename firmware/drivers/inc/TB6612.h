@@ -49,7 +49,8 @@ public:
     [[nodiscard]] explicit TB6612Port(
         const CoreLink::GPIO& aIn1,
         const CoreLink::GPIO& aIn2,
-        const CoreLink::GPIO& aPWM
+        const CoreLink::GPIO& aPWM,
+        const CoreLink::GPIO& aStby
     ) noexcept;
 
     // IMotorController interface.
@@ -61,6 +62,7 @@ public:
     CoreLink::GPIO mIn1{};
     CoreLink::GPIO mIn2{};
     CoreLink::GPIO mPWM{};
+    CoreLink::GPIO mStby{};
 };
 
 
