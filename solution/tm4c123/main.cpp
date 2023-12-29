@@ -150,7 +150,8 @@ int main()
         GUI = 3
     };
 
-    if (static auto lPFPPAO{StartMgr()}; lPFPPAO) {
+    auto lPFPPAO{StartMgr()};
+    if (lPFPPAO) {
         static std::array<const QP::QEvt*, 10> sEventQSto{};
         lPFPPAO->start(
             static_cast<int>(ePrio::Mgr),
@@ -160,7 +161,8 @@ int main()
         );
     }
 
-    if (static auto lGUIAO{StartGUI()}; lGUIAO) {
+    auto lGUIAO{StartGUI()};
+    if (lGUIAO) {
         static std::array<const QP::QEvt*, 10> sEventQSto{};
         lGUIAO->start(
             static_cast<int>(ePrio::GUI),
@@ -170,7 +172,8 @@ int main()
         );
     }
 
-    if (static auto lRTCCAO{StartRTCC()}; lRTCCAO) {
+    auto lRTCCAO{StartRTCC()};
+    if (lRTCCAO) {
         static std::array<const QP::QEvt*, 10> sEventQSto{};
         lRTCCAO->start(
             static_cast<int>(ePrio::RTCC),
@@ -200,10 +203,15 @@ static void Init()
     // Enable clock for to the peripherals used by this application...
     // Configure the LEDs and push buttons.
     sLEDRed.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(sLEDRed.mBaseAddr, sLEDRed.mPin);
     ROM_GPIODirModeSet(sLEDRed.mBaseAddr, sLEDRed.mPin, GPIO_DIR_MODE_OUT);
+
     sLEDGreen.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(sLEDGreen.mBaseAddr, sLEDGreen.mPin);
     ROM_GPIODirModeSet(sLEDGreen.mBaseAddr, sLEDGreen.mPin, GPIO_DIR_MODE_OUT);
+
     sLEDBlue.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(sLEDBlue.mBaseAddr, sLEDBlue.mPin);
     ROM_GPIODirModeSet(sLEDBlue.mBaseAddr, sLEDBlue.mPin, GPIO_DIR_MODE_OUT);
 
     ROM_GPIOPadConfigSet(
@@ -278,14 +286,10 @@ static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>
     static constexpr CoreLink::GPIO sBIn1{GPIOC_BASE, GPIO_PIN_7};
     static constexpr CoreLink::GPIO sBIn2{GPIOC_BASE, GPIO_PIN_6};
     static constexpr CoreLink::GPIO sPWMB{GPIOF_BASE, GPIO_PIN_2};
-    [[maybe_unused]] static constexpr CoreLink::GPIO sSTBYn{GPIOD_BASE, GPIO_PIN_6};
-
-    sBIn1.EnableSysCtlPeripheral();
-    sBIn2.EnableSysCtlPeripheral();
-    sPWMB.EnableSysCtlPeripheral();
+    static constexpr CoreLink::GPIO sSTBYn{GPIOD_BASE, GPIO_PIN_6};
 
     static constexpr auto sAlarmID{0};
-    auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB)};
+    auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB, sSTBYn)};
     return std::make_unique<PFPP::AO::Mgr>(
         sAlarmID,
         std::move(lMotorControl),
@@ -307,6 +311,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
     // See slau786.pdf, section 2.3.3 Customizable LCD Power.
     static constexpr CoreLink::GPIO sLCDPwr{GPIOB_BASE, GPIO_PIN_5};
     sLCDPwr.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(sLCDPwr.mBaseAddr, sLCDPwr.mPin);
     ROM_GPIODirModeSet(sLCDPwr.mBaseAddr, sLCDPwr.mPin, GPIO_DIR_MODE_OUT);
     ROM_GPIOPadConfigSet(
         sLCDPwr.mBaseAddr,
@@ -318,6 +323,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
 
     static constexpr CoreLink::GPIO sLCDDisp{GPIOE_BASE, GPIO_PIN_4};
     sLCDDisp.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(sLCDDisp.mBaseAddr, sLCDDisp.mPin);
     ROM_GPIODirModeSet(sLCDDisp.mBaseAddr, sLCDDisp.mPin, GPIO_DIR_MODE_OUT);
     ROM_GPIOPadConfigSet(
         sLCDDisp.mBaseAddr,
@@ -356,6 +362,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
 
 static auto StartRTCC() noexcept -> std::unique_ptr<RTCC::AO::Mgr>
 {
+    // NOTE: Shared with the board function Blue LED. Do not use. May require patching RTCC board.
     [[maybe_unused]] static constexpr CoreLink::GPIO sRTCCRst{GPIOF_BASE, GPIO_PIN_4};
 
     static constexpr CoreLink::SPISlaveCfg sRTCCSPISlaveCfg{
