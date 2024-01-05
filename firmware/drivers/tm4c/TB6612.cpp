@@ -63,7 +63,6 @@ TB6612Port::TB6612Port(
     : mIn1{aIn1}
     , mIn2{aIn2}
     , mPWM{aPWM}
-    , mStby{aStby}
 {
     // In1.
     mIn1.EnableSysCtlPeripheral();

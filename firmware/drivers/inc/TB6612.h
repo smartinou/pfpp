@@ -62,7 +62,6 @@ public:
     CoreLink::GPIO mIn1{};
     CoreLink::GPIO mIn2{};
     CoreLink::GPIO mPWM{};
-    CoreLink::GPIO mStby{};
 };
 
 
