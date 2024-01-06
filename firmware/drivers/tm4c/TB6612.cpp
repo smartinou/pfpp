@@ -98,16 +98,16 @@ TB6612Port::TB6612Port(
     );
 
     // Stby.
-    mStby.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(mStby.mBaseAddr, mStby.mPin);
-    ROM_GPIODirModeSet(mStby.mBaseAddr, mStby.mPin, GPIO_DIR_MODE_OUT);
+    aStby.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(aStby.mBaseAddr, aStby.mPin);
+    ROM_GPIODirModeSet(aStby.mBaseAddr, aStby.mPin, GPIO_DIR_MODE_OUT);
     ROM_GPIOPadConfigSet(
-        mStby.mBaseAddr,
-        mStby.mPin,
+        aStby.mBaseAddr,
+        aStby.mPin,
         GPIO_STRENGTH_4MA,
         GPIO_PIN_TYPE_STD
     );
-    ROM_GPIOPinWrite(mStby.mBaseAddr, mStby.mPin, mStby.mPin);
+    ROM_GPIOPinWrite(aStby.mBaseAddr, aStby.mPin, aStby.mPin);
 }
 
 
