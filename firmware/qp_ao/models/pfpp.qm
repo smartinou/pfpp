@@ -299,11 +299,11 @@ lAlarmTimeEvt-&gt;mIsSelfCleared = true;
 lAlarmTimeEvt-&gt;mGetAlarmTimeFct = StaticGetNextAlarm;
 lAlarmTimeEvt-&gt;mParam = this;
 
-#if Q_SPY
-static const uint8_t sSetNextAlarm = 0U;
+#ifdef Q_SPY
+auto lSender{this};
 #endif
 
-QP::QF::PUBLISH(lAlarmTimeEvt, &amp;sSetNextAlarm);
+QP::QF::PUBLISH(lAlarmTimeEvt, lSender);
 </code>
     </operation>
     <operation name="DispatchTimedFeedEvent" type="void" visibility="0x02" properties="0x00">
