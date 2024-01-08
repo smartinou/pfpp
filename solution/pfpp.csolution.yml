@@ -11,7 +11,7 @@ solution:
     - pack: ARM::CMSIS
     - pack: ARM::CMSIS-Driver
     - pack: Keil::TM4C_DFP
-    - pack: Quantum-Leaps::CMSIS-QPCPP
+    - pack: QuantumLeaps::qpcpp
     - pack: ARM::CMSIS-FreeRTOS
     - pack: SEGGER::CMSIS-embOS
     - pack: lwIP::lwIP
@@ -24,6 +24,7 @@ solution:
       warnings: "on"
       define:
         - DEBUG_TEST
+        - Q_SPY
     - type: Release
       debug: off
       optimize: speed

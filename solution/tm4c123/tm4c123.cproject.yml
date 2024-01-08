@@ -4,14 +4,16 @@ project:
     - component: ARM::CMSIS:CORE
     - component: Keil::Device:Startup
 
-    - component: Quantum-Leaps::Utility&QP/C++:QEP
-    - component: Quantum-Leaps::Utility&QP/C++:QF
-    - component: Quantum-Leaps::Utility&QP/C++:QS
-    #- component: Quantum-Leaps::Utility&QP/C++:QUTest
-    - component: Quantum-Leaps::Utility&QP/C++:Ports:Native&QV
-
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Event Processor&qep
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Framework&qf
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Real-Time Kernel&qv
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Software tracing&qs
+      for-context:
+        - .Debug
     #- component: Texas-Instruments::Utility&Peripheral drivers:Peripheral Driver Library
     - component: Texas-Instruments::Graphics&Graphics:Core Library
+      define:
+        - GRLIB_REMOVE_WIDE_FONT_SUPPORT
 
   add-path:
     - "../../firmware"
@@ -19,6 +21,7 @@ project:
   define:
     - TARGET_IS_TM4C123_RB1
     - PART_TM4C123GH6PM
+    - QP_API_VERSION : 730
 
   linker:
     - script: ./tm4c123.ld

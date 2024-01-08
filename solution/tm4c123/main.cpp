@@ -136,11 +136,11 @@ int main()
     static std::array<QP::QSubscrList, QTY_SIG> lSubsribeSto{};
     QP::QF::psInit(lSubsribeSto.data(), lSubsribeSto.size());
 
+    Init();
+
     // Send object dictionaries for event pools...
     QS_OBJ_DICTIONARY(sSmallPoolSto);
     QS_FUN_DICTIONARY(&QP::QHsm::top);
-
-    Init();
 
     // Keep each objects alive until the end of the program.
     enum class ePrio
@@ -440,10 +440,7 @@ void QP::QV::onIdle()
 
 
 //............................................................................
-extern "C" Q_NORETURN Q_onAssert(
-    [[maybe_unused]] const char* const module,
-    [[maybe_unused]] const int loc
-)
+Q_NORETURN Q_onError(const char* const module, const int loc)
 {
     //
     // NOTE: add here your application-specific error handling
@@ -513,13 +510,13 @@ QP::QSTimeCtr QP::QS::onGetTime()
 //............................................................................
 void QP::QS::onFlush()
 {
-#if 1
     // At least one block of data ready to get out.
     // Create an event for each of them and publish to all subscribing sinks.
     // [MG] CREATE SINKS WITH lBlockSize BUFFERS.
     uint16_t lBlockSize{1024};
     QF_INT_DISABLE();
     while (const auto lBlock{QS::getBlock(&lBlockSize)}) {
+#if 0
         auto lQSPYBlockEvt{Q_NEW(BSP::Event::QSPYProcBlock, BSP_QSPY_PROC_BLOCK_SIG)};
         QF_INT_ENABLE();
 
@@ -530,10 +527,10 @@ void QP::QS::onFlush()
         // [MG] GOOD WAY TO CONTROL THE SINKS.
         QP::QF::PUBLISH(lQSPYBlockEvt, &sOnFlush);
         QF_INT_DISABLE();
+#endif
     }
 
     QF_INT_ENABLE();
-#endif
 }
 
 
@@ -602,11 +599,17 @@ static void DebounceSwitches()
     if ((~sPreviousDebounce) & lCurrentDebounce) {
 
         if (lCurrentDebounce & sButton1.mPin) {
-            static const BSP::Event::ButtonEvt sOnEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            static const BSP::Event::ButtonEvt sOnEvt{
+                QP::QEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG},
+                true
+            };
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
         if (lCurrentDebounce & sButton2.mPin) {
-            static const BSP::Event::ButtonEvt sOnEvt{BSP_TIMED_FEED_BUTTON_EVT_SIG, 0U, 0U, true};
+            static const BSP::Event::ButtonEvt sOnEvt{
+                QP::QEvt{BSP_TIMED_FEED_BUTTON_EVT_SIG},
+                true
+            };
             QP::QF::PUBLISH(&sOnEvt, &sSysTick_Handler);
         }
     }
@@ -614,7 +617,10 @@ static void DebounceSwitches()
     // Look for released states.
     if (sPreviousDebounce & ~lCurrentDebounce) {
         if ((sPreviousDebounce) & sButton1.mPin) {
-            static const BSP::Event::ButtonEvt sOffEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG, 0U, 0U, false};
+            static const BSP::Event::ButtonEvt sOffEvt{
+                QP::QEvt{BSP_MANUAL_FEED_BUTTON_EVT_SIG},
+                false
+            };
             QP::QF::PUBLISH(&sOffEvt, &sSysTick_Handler);
         }
     }
