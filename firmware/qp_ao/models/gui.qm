@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<model version="5.2.5" links="0">
+<model version="6.1.0" links="0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.state-machine.com/qm/qm.xsd">
  <documentation>About this example:
 -------------------
 Simple &quot;Blinky&quot; console application for workstations (Windows, Linux, macOS)
@@ -26,9 +26,9 @@ This example is a simple console application, which you can run from a terminal.
 For more QM examples for QP/C++ see:
 https://www.state-machine.com/qpcpp/exa.html</documentation>
  <framework name="qpcpp"/>
- <package file="./gui.qmp"/>
+ <extern_package file="./gui.qmp"/>
  <directory name="../codegen">
-  <file name="GUI_AOs.h" codec="UTF-8">
+  <file name="GUI_AOs.h" codec="">
    <text>#ifndef GUI__AOS_MGR_H_
 #define GUI__AOS_MGR_H_
 
@@ -49,7 +49,7 @@ $declare${GUI::AOs::Mgr}
 #endif // GUI__AOS_MGR_H_
 </text>
   </file>
-  <file name="GUI_AOs.cpp" codec="UTF-8">
+  <file name="GUI_AOs.cpp" codec="">
    <text>// This project.
 #include &quot;qp_ao/codegen/GUI_AOs.h&quot;
 #include &quot;qp_ao/codegen/Signals.h&quot;
