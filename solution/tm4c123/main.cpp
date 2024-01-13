@@ -278,15 +278,46 @@ static void Init()
 
 static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>
 {
-    // TB6612 Motor Controller pins.
-    [[maybe_unused]] static constexpr CoreLink::GPIO sAIn1{GPIOD_BASE, GPIO_PIN_7};
-    [[maybe_unused]] static constexpr CoreLink::GPIO sAIn2{GPIOA_BASE, GPIO_PIN_2};
-    [[maybe_unused]] static constexpr CoreLink::GPIO sPWMA{GPIOF_BASE, GPIO_PIN_3};
+    auto InitGPIO{
+        [](const CoreLink::GPIO& aGPIO) noexcept
+        {
+            aGPIO.EnableSysCtlPeripheral();
+            ROM_GPIOPinTypeGPIOOutput(aGPIO.mBaseAddr, aGPIO.mPin);
+            ROM_GPIODirModeSet(aGPIO.mBaseAddr, aGPIO.mPin, GPIO_DIR_MODE_OUT);
+            ROM_GPIOPadConfigSet(
+                aGPIO.mBaseAddr,
+                aGPIO.mPin,
+                GPIO_STRENGTH_4MA,
+                GPIO_PIN_TYPE_STD_WPU
+            );
+        }
+    };
 
+    // TB6612 Motor Controller pins.
+#if 0
+    static constexpr CoreLink::GPIO sAIn1{GPIOD_BASE, GPIO_PIN_7};
+    static constexpr CoreLink::GPIO sAIn2{GPIOA_BASE, GPIO_PIN_2};
+    static constexpr CoreLink::GPIO sPWMA{GPIOF_BASE, GPIO_PIN_3};
+
+    sAIn1.EnableSysCtlPeripheral();
+    GPIOD->LOCK = 0x4c4f434b;
+    GPIOD->CR |= sAIn1.mPin;
+
+    InitGPIO(sAIn1);
+    InitGPIO(sAIn2);
+    InitGPIO(sPWMA);
+#else
     static constexpr CoreLink::GPIO sBIn1{GPIOC_BASE, GPIO_PIN_7};
     static constexpr CoreLink::GPIO sBIn2{GPIOC_BASE, GPIO_PIN_6};
     static constexpr CoreLink::GPIO sPWMB{GPIOF_BASE, GPIO_PIN_2};
+
+    InitGPIO(sBIn1);
+    InitGPIO(sBIn2);
+    InitGPIO(sPWMB);
+#endif
+
     static constexpr CoreLink::GPIO sSTBYn{GPIOD_BASE, GPIO_PIN_6};
+    InitGPIO(sSTBYn);
 
     static constexpr auto sAlarmID{0};
     auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB, sSTBYn)};

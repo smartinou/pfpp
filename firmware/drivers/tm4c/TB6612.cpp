@@ -64,49 +64,6 @@ TB6612Port::TB6612Port(
     , mIn2{aIn2}
     , mPWM{aPWM}
 {
-    // In1.
-    mIn1.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(mIn1.mBaseAddr, mIn1.mPin);
-    ROM_GPIODirModeSet(mIn1.mBaseAddr, mIn1.mPin, GPIO_DIR_MODE_OUT);
-    ROM_GPIOPadConfigSet(
-        mIn1.mBaseAddr,
-        mIn1.mPin,
-        GPIO_STRENGTH_4MA,
-        GPIO_PIN_TYPE_STD
-    );
-
-    // In2.
-    mIn2.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(mIn2.mBaseAddr, mIn2.mPin);
-    ROM_GPIODirModeSet(mIn2.mBaseAddr, mIn2.mPin, GPIO_DIR_MODE_OUT);
-    ROM_GPIOPadConfigSet(
-        mIn2.mBaseAddr,
-        mIn2.mPin,
-        GPIO_STRENGTH_4MA,
-        GPIO_PIN_TYPE_STD
-    );
-
-    // PWM.
-    mPWM.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(mPWM.mBaseAddr, mPWM.mPin);
-    ROM_GPIODirModeSet(mPWM.mBaseAddr, mPWM.mPin, GPIO_DIR_MODE_OUT);
-    ROM_GPIOPadConfigSet(
-        mPWM.mBaseAddr,
-        mPWM.mPin,
-        GPIO_STRENGTH_4MA,
-        GPIO_PIN_TYPE_STD
-    );
-
-    // Stby.
-    aStby.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(aStby.mBaseAddr, aStby.mPin);
-    ROM_GPIODirModeSet(aStby.mBaseAddr, aStby.mPin, GPIO_DIR_MODE_OUT);
-    ROM_GPIOPadConfigSet(
-        aStby.mBaseAddr,
-        aStby.mPin,
-        GPIO_STRENGTH_4MA,
-        GPIO_PIN_TYPE_STD
-    );
     ROM_GPIOPinWrite(aStby.mBaseAddr, aStby.mPin, aStby.mPin);
 }
 
