@@ -76,11 +76,13 @@
 // *****************************************************************************
 
 static void Init();
+static void InitOutputGPIO(const CoreLink::GPIO& aGPIO) noexcept;
+
 [[nodiscard]] static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>;
 [[nodiscard]] static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>;
 [[nodiscard]] static auto StartRTCC() noexcept -> std::unique_ptr<RTCC::AO::Mgr>;
 
-static void DebounceSwitches();
+static void DebounceSwitches() noexcept;
 
 // *****************************************************************************
 //                             GLOBAL VARIABLES
@@ -200,38 +202,9 @@ static void Init()
 
     // NOTE: The VFP (hardware Floating Point) unit is configured by QV
 
-    // Enable clock for to the peripherals used by this application...
-    // Configure the LEDs and push buttons.
-    sLEDRed.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(sLEDRed.mBaseAddr, sLEDRed.mPin);
-    ROM_GPIODirModeSet(sLEDRed.mBaseAddr, sLEDRed.mPin, GPIO_DIR_MODE_OUT);
-
-    sLEDGreen.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(sLEDGreen.mBaseAddr, sLEDGreen.mPin);
-    ROM_GPIODirModeSet(sLEDGreen.mBaseAddr, sLEDGreen.mPin, GPIO_DIR_MODE_OUT);
-
-    sLEDBlue.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(sLEDBlue.mBaseAddr, sLEDBlue.mPin);
-    ROM_GPIODirModeSet(sLEDBlue.mBaseAddr, sLEDBlue.mPin, GPIO_DIR_MODE_OUT);
-
-    ROM_GPIOPadConfigSet(
-        sLEDRed.mBaseAddr,
-        sLEDRed.mPin,
-        GPIO_STRENGTH_8MA,
-        GPIO_PIN_TYPE_STD
-    );
-    ROM_GPIOPadConfigSet(
-        sLEDGreen.mBaseAddr,
-        sLEDGreen.mPin,
-        GPIO_STRENGTH_8MA,
-        GPIO_PIN_TYPE_STD
-    );
-    ROM_GPIOPadConfigSet(
-        sLEDBlue.mBaseAddr,
-        sLEDBlue.mPin,
-        GPIO_STRENGTH_8MA,
-        GPIO_PIN_TYPE_STD
-    );
+    InitOutputGPIO(sLEDRed);
+    InitOutputGPIO(sLEDGreen);
+    InitOutputGPIO(sLEDBlue);
 
     ROM_GPIOPinWrite(sLEDRed.mBaseAddr, sLEDRed.mPin, 0);
     ROM_GPIOPinWrite(sLEDGreen.mBaseAddr, sLEDGreen.mPin, 0);
@@ -276,23 +249,22 @@ static void Init()
 }
 
 
+static void InitOutputGPIO(const CoreLink::GPIO& aGPIO) noexcept
+{
+    aGPIO.EnableSysCtlPeripheral();
+    ROM_GPIOPinTypeGPIOOutput(aGPIO.mBaseAddr, aGPIO.mPin);
+    ROM_GPIODirModeSet(aGPIO.mBaseAddr, aGPIO.mPin, GPIO_DIR_MODE_OUT);
+    ROM_GPIOPadConfigSet(
+        aGPIO.mBaseAddr,
+        aGPIO.mPin,
+        GPIO_STRENGTH_8MA,
+        GPIO_PIN_TYPE_STD_WPU
+    );
+}
+
+
 static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>
 {
-    auto InitGPIO{
-        [](const CoreLink::GPIO& aGPIO) noexcept
-        {
-            aGPIO.EnableSysCtlPeripheral();
-            ROM_GPIOPinTypeGPIOOutput(aGPIO.mBaseAddr, aGPIO.mPin);
-            ROM_GPIODirModeSet(aGPIO.mBaseAddr, aGPIO.mPin, GPIO_DIR_MODE_OUT);
-            ROM_GPIOPadConfigSet(
-                aGPIO.mBaseAddr,
-                aGPIO.mPin,
-                GPIO_STRENGTH_4MA,
-                GPIO_PIN_TYPE_STD_WPU
-            );
-        }
-    };
-
     // TB6612 Motor Controller pins.
 #if 0
     static constexpr CoreLink::GPIO sAIn1{GPIOD_BASE, GPIO_PIN_7};
@@ -303,21 +275,21 @@ static auto StartMgr() noexcept -> std::unique_ptr<PFPP::AO::Mgr>
     GPIOD->LOCK = 0x4c4f434b;
     GPIOD->CR |= sAIn1.mPin;
 
-    InitGPIO(sAIn1);
-    InitGPIO(sAIn2);
-    InitGPIO(sPWMA);
+    InitOutputGPIO(sAIn1);
+    InitOutputGPIO(sAIn2);
+    InitOutputGPIO(sPWMA);
 #else
     static constexpr CoreLink::GPIO sBIn1{GPIOC_BASE, GPIO_PIN_7};
     static constexpr CoreLink::GPIO sBIn2{GPIOC_BASE, GPIO_PIN_6};
     static constexpr CoreLink::GPIO sPWMB{GPIOF_BASE, GPIO_PIN_2};
 
-    InitGPIO(sBIn1);
-    InitGPIO(sBIn2);
-    InitGPIO(sPWMB);
+    InitOutputGPIO(sBIn1);
+    InitOutputGPIO(sBIn2);
+    InitOutputGPIO(sPWMB);
 #endif
 
     static constexpr CoreLink::GPIO sSTBYn{GPIOD_BASE, GPIO_PIN_6};
-    InitGPIO(sSTBYn);
+    InitOutputGPIO(sSTBYn);
 
     static constexpr auto sAlarmID{0};
     auto lMotorControl{std::make_unique<Drivers::TB6612Port>(sBIn1, sBIn2, sPWMB, sSTBYn)};
@@ -341,27 +313,11 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
     // Default option to power the board.
     // See slau786.pdf, section 2.3.3 Customizable LCD Power.
     static constexpr CoreLink::GPIO sLCDPwr{GPIOB_BASE, GPIO_PIN_5};
-    sLCDPwr.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(sLCDPwr.mBaseAddr, sLCDPwr.mPin);
-    ROM_GPIODirModeSet(sLCDPwr.mBaseAddr, sLCDPwr.mPin, GPIO_DIR_MODE_OUT);
-    ROM_GPIOPadConfigSet(
-        sLCDPwr.mBaseAddr,
-        sLCDPwr.mPin,
-        GPIO_STRENGTH_2MA,
-        GPIO_PIN_TYPE_STD
-    );
+    InitOutputGPIO(sLCDPwr);
     ROM_GPIOPinWrite(sLCDPwr.mBaseAddr, sLCDPwr.mPin, sLCDPwr.mPin);
 
     static constexpr CoreLink::GPIO sLCDDisp{GPIOE_BASE, GPIO_PIN_4};
-    sLCDDisp.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(sLCDDisp.mBaseAddr, sLCDDisp.mPin);
-    ROM_GPIODirModeSet(sLCDDisp.mBaseAddr, sLCDDisp.mPin, GPIO_DIR_MODE_OUT);
-    ROM_GPIOPadConfigSet(
-        sLCDDisp.mBaseAddr,
-        sLCDDisp.mPin,
-        GPIO_STRENGTH_2MA,
-        GPIO_PIN_TYPE_STD_WPU
-    );
+    InitOutputGPIO(sLCDDisp);
 
     static constexpr CoreLink::SPISlaveCfg sLCDSPISlaveCfg{
         .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
@@ -602,7 +558,7 @@ void SysTick_Handler(void)
 // The algorithm for debouncing
 // adapted from the book "Embedded Systems Dictionary" by Jack Ganssle
 // and Michael Barr, page 71.
-static void DebounceSwitches()
+static void DebounceSwitches() noexcept
 {
     // Read current pin state into array of pin states.
     static constexpr auto sStateDepth{5};
