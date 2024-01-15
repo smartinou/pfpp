@@ -42,9 +42,17 @@ namespace CoreLink
 struct CSnGPIO final
     : public GPIO
 {
+    enum class tCSPolarity
+    {
+        ActiveHigh,
+        ActiveLow
+    };
+
     void InitCSnGPIO() const noexcept;
     void AssertCSn() const noexcept;
     void DeassertCSn() const noexcept;
+
+    tCSPolarity mCSPolarity{tCSPolarity::ActiveLow};
 };
 
 

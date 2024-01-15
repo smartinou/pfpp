@@ -318,13 +318,16 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
 
     static constexpr CoreLink::GPIO sLCDDisp{GPIOE_BASE, GPIO_PIN_4};
     InitOutputGPIO(sLCDDisp);
+    ROM_GPIOPinWrite(sLCDDisp.mBaseAddr, sLCDDisp.mPin, 0);
 
     static constexpr CoreLink::SPISlaveCfg sLCDSPISlaveCfg{
         .mProtocol{CoreLink::SPISlaveCfg::tProtocol::MOTO_0},
         .mBitRate{1000000UL},
         .mDataWidth{8},
-        .mCSn{GPIOE_BASE, GPIO_PIN_5}
+        .mCSn{GPIOE_BASE, GPIO_PIN_5, CoreLink::CSnGPIO::tCSPolarity::ActiveHigh}
     };
+    InitOutputGPIO(sLCDSPISlaveCfg.mCSn);
+    sLCDSPISlaveCfg.mCSn.DeassertCSn();
 
     auto lLCD{
         std::make_shared<Drivers::LS013B7>(
@@ -336,7 +339,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
             },
             [](const std::byte aByte) noexcept
             {
-                return sSPIMasterDev.PushPullByte(aByte);
+                return sSPIMasterDev.PushPullByte(sLCDSPISlaveCfg, aByte);
             },
             []() noexcept {ROM_GPIOPinWrite(sLCDDisp.mBaseAddr, sLCDDisp.mPin, sLCDDisp.mPin);},
             []() noexcept {ROM_GPIOPinWrite(sLCDDisp.mBaseAddr, sLCDDisp.mPin, 0);}

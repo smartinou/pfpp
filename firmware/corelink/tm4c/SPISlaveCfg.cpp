@@ -76,13 +76,13 @@ void CSnGPIO::InitCSnGPIO() const noexcept
 
 void CSnGPIO::AssertCSn() const noexcept
 {
-    ROM_GPIOPinWrite(mBaseAddr, mPin, 0);
+    ROM_GPIOPinWrite(mBaseAddr, mPin, (mCSPolarity == tCSPolarity::ActiveLow) ? 0 : mPin);
 }
 
 
 void CSnGPIO::DeassertCSn() const noexcept
 {
-    ROM_GPIOPinWrite(mBaseAddr, mPin, mPin);
+    ROM_GPIOPinWrite(mBaseAddr, mPin, (mCSPolarity == tCSPolarity::ActiveLow) ? mPin : 0);
 }
 
 
