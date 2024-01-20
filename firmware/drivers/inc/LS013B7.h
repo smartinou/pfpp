@@ -69,6 +69,7 @@ public:
     ) noexcept;
 
     // ILCD interface.
+    void Init() noexcept override;
     void DisplayOn() const noexcept override;
     void DisplayOff() const noexcept override;
 
@@ -115,8 +116,8 @@ private:
 
     void SetDisplayMode() noexcept;
     void SetAllClrMode() noexcept;
-    void SetDataUpdateMode(const uint8_t aRow, std::span<const std::byte> aSpan) noexcept;
-    void SetDataUpdateModeMultiple(const uint8_t aStartGateLineAddress) noexcept;
+    void SetDataUpdateMode(uint8_t aRow, std::span<const std::byte> aSpan) noexcept;
+    void SetDataUpdateModeMultiple(uint8_t aStartRowIndex, uint8_t aEndRowIndex) noexcept;
 
     CoreLink::SPIAssert mSPIAssert;
     CoreLink::SPIAssert mSPIDeassert;

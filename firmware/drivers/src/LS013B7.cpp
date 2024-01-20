@@ -27,6 +27,7 @@
 #include "drivers/inc/LS013B7.h"
 
 // STL.
+#include <array>
 #include <cstddef>
 #include <functional>
 
@@ -42,9 +43,60 @@
 //                            FUNCTION PROTOTYPES
 // *****************************************************************************
 
+static constexpr std::array sSwappedNibbleLookup{
+    0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+    0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf
+};
+
+static constexpr auto BitSwap(const uint8_t aByte) noexcept
+{
+    return std::byte(
+        static_cast<uint8_t>(
+            sSwappedNibbleLookup[aByte & 0b1111] << 4 |
+            sSwappedNibbleLookup[aByte >> 4]
+        )
+    );
+}
+
+static constexpr auto ToGateLine(const uint8_t aRowIndex) noexcept
+{
+    const auto lGateLineIndex{aRowIndex + 1};
+    return BitSwap(lGateLineIndex);
+}
+
+template<const size_t aSize>
+static constexpr auto FillGateLineLookup() noexcept
+{
+    std::array<std::byte, aSize> lGateLineLookup;
+    for (auto i = decltype(aSize){0}; i < aSize; ++i) {
+        lGateLineLookup[i] = ToGateLine(i);
+    }
+
+    return lGateLineLookup;
+}
+
 // *****************************************************************************
 //                             GLOBAL VARIABLES
 // *****************************************************************************
+
+static constexpr auto sGateLineLookup{FillGateLineLookup<128>()};
+
+static constexpr auto sSize{256};
+static constexpr auto sBitSwapLookup{
+    []() noexcept
+    {
+        std::array<std::byte, sSize> lBitSwapLookup;
+        for (auto i{0}; i < sSize; ++i) {
+            lBitSwapLookup[i] = ~BitSwap(i);
+        }
+        return lBitSwapLookup;
+    } ()
+};
+
+// 6-5-1 ) Data update mode (1 line).
+// 6-5-2 ) Data Update Mode (Multiple Lines)
+// Updates data of only one specified line. (M0=”H”, M2＝”L”)
+static constexpr std::byte sDataUpdateModeCmd{0x1 << 7};
 
 // *****************************************************************************
 //                            EXPORTED FUNCTIONS
@@ -146,6 +198,12 @@ LS013B7::LS013B7(
     , mIsLineDirty{false}
 {
     // Ctor body.
+}
+
+
+void LS013B7::Init() noexcept
+{
+    SetAllClrMode();
 }
 
 
@@ -397,9 +455,7 @@ void LS013B7::SetDisplayMode() noexcept
     // Maintains memory internal data (maintains current display). (M0=”L”, M2＝”L”)
     static constexpr std::array sDisplayModeCmd{std::byte{0x0}, std::byte{0x0}};
 
-    mSPIAssert();
     mSPIWr(std::span{sDisplayModeCmd}, std::nullopt);
-    mSPIDeassert();
 }
 
 
@@ -407,50 +463,49 @@ void LS013B7::SetAllClrMode() noexcept
 {
     // 6-5-4 All Clear Mode
     // Clears memory internal data and writes white on screen. (M0=”L”, M2＝”H”)
-    static constexpr std::array sClrCmd{std::byte{0x1 << 2}, std::byte{}};
+    static constexpr std::array sClrCmd{std::byte{0x1 << 5}, std::byte{}};
 
-    mSPIAssert();
     mSPIWr(std::span{sClrCmd}, std::nullopt);
-    mSPIDeassert();
-
+    DisplayOn();
     std::fill(mImgBuf.begin(), mImgBuf.end(), Line{});
 }
 
 
 void LS013B7::SetDataUpdateMode(const uint8_t aRow, std::span<const std::byte> aSpan) noexcept
 {
-    // 6-5-1 Data update mode (1 line).
-    // Updates data of only one specified line. (M0=”H”, M2＝”L”)
-    static constexpr std::array sDataUpdateModeCmd{std::byte{0x1}};
-
     // cmd, gateline, data, dummy bytes(2).
     mSPIAssert();
 
-    mSPIPushPullByte(sDataUpdateModeCmd[0]);
-    mSPIPushPullByte(sDataUpdateModeCmd[1]);
-    mSPIPushPullByte(std::byte{static_cast<uint8_t>(aRow + 1)});
-    mSPIPushPullByte(std::byte{0x00});
-    mSPIWr(aSpan, std::nullopt);
+    mSPIPushPullByte(sDataUpdateModeCmd);
+    mSPIPushPullByte(sGateLineLookup[aRow]);
+    for (const auto lByte : aSpan) {
+        mSPIPushPullByte(sBitSwapLookup[std::to_integer<uint8_t>(lByte)]);
+    }
+
+    mSPIPushPullByte(std::byte{0xa5});
+    mSPIPushPullByte(std::byte{0});
 
     mSPIDeassert();
 }
 
-// TODO: COMPLETE.
-void LS013B7::SetDataUpdateModeMultiple(const uint8_t aStartGateLineAddress) noexcept
+void LS013B7::SetDataUpdateModeMultiple(const uint8_t aStartRowIndex, const uint8_t aEndRowIndex) noexcept
 {
-    // 6-5-2 ) Data Update Mode (Multiple Lines)
-    // Updates arbitrary multiple lines data. (M0=”H”, M2＝”L”)
-    static constexpr std::array sDataUpdateModeCmd{std::byte{0x1}};
-
     // cmd, gateline, data,
     // dummy (1), gateline, data
     // ...
     // dummy (1), gateline, data, dummy(2).
     mSPIAssert();
 
-    mSPIPushPullByte(sDataUpdateModeCmd[0]);
-    mSPIPushPullByte(sDataUpdateModeCmd[1]);
-    mSPIPushPullByte(std::byte{static_cast<uint8_t>(aStartGateLineAddress + 1)});
+    mSPIPushPullByte(sDataUpdateModeCmd);
+    for (auto i{aStartRowIndex}; i <= aEndRowIndex; ++i) {
+        mSPIPushPullByte(sGateLineLookup[i]);
+        for (const auto lByte : mImgBuf[i]) {
+            mSPIPushPullByte(sBitSwapLookup[std::to_integer<uint8_t>(lByte)]);
+        }
+
+        mSPIPushPullByte(std::byte{0x5a});
+    }
+
     mSPIPushPullByte(std::byte{0x00});
 
     mSPIDeassert();

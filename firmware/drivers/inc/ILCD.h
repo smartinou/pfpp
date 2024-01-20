@@ -43,6 +43,7 @@ class ILCD
 public:
     virtual ~ILCD() = default;
 
+    virtual void Init() = 0;
     virtual void DisplayOn() const = 0;
     virtual void DisplayOff() const = 0;
 };
