@@ -243,14 +243,14 @@ LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2, bool aIsA
 void LS013B7::PixelDraw(
     const int32_t aColumnIndex,
     const int32_t aRowIndex,
-    [[maybe_unused]] const uint32_t aColor
+    const uint32_t aColor
 ) noexcept
 {
     auto& lRow{mImgBuf[aRowIndex]};
     const auto lByteIndex{aColumnIndex / sPixelsPerByte};
     const auto lBitIndex{aColumnIndex % sPixelsPerByte};
-    const auto lColorByte{std::byte{static_cast<uint8_t>(aColor)} << lBitIndex};
-    lRow[lByteIndex] = (lRow[lByteIndex] & ~lColorByte) | lColorByte;
+    const auto lColorByte{std::byte{static_cast<uint8_t>(aColor ? 0x1 : 0x0)} << lBitIndex};
+    lRow[lByteIndex] = (lRow[lByteIndex] & ~std::byte{static_cast<uint8_t>(0x1 << lBitIndex)}) | lColorByte;
 
     mIsLineDirty[aRowIndex] = true;
 }
