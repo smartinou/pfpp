@@ -270,7 +270,9 @@ void LS013B7::PixelDrawMultiple(
 
     switch (aBitsPerPixel & 0xFF)
     {
-        case 1: PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette); break;
+        case 1: PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette);
+            mIsLineDirty[aRowIx] = true;
+            break;
         case 4: break;
         case 8: PixelDrawMultiple8BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette); break;
         default: // Invalid number of pixels per byte.
@@ -286,35 +288,35 @@ void LS013B7::PixelDrawMultiple1BPP(
     const uint32_t aSourceBitIndex,
     const int32_t aPixelCount,
     const uint8_t *aSourceData,
-    const uint8_t *aColorPalette
+    [[maybe_unused]] const uint8_t *aColorPalette
 ) noexcept
 {
-    auto lByteIndex{aByteIndex};
-    auto lBitIndex{static_cast<uint8_t>(aBitIndex)};
+    auto lImgByteIndex{aByteIndex};
+    auto lImgBitIndex{static_cast<uint8_t>(7 - (aBitIndex & 0x7))};
     auto lSourceBitIndex{static_cast<uint8_t>(aSourceBitIndex)};
     auto lPixelCount{aPixelCount};
     auto lSourceData{aSourceData};
     while (lPixelCount) {
-        const std::byte lPixelByte{*lSourceData};
+        const std::byte lSourcePixelByte{*lSourceData};
+        ++lSourceData;
 
+        std::byte lImgByte{0};
         for (; (lSourceBitIndex < 8) && lPixelCount; ++lSourceBitIndex, --lPixelCount) {
+            const auto lColorIndex{std::to_integer<bool>((lSourcePixelByte >> (7 - lSourceBitIndex)) & std::byte{1})};
 
-            const auto lColorByte{std::byte{static_cast<uint8_t>(1 << lBitIndex)}};
-            const auto lColorIndex{std::to_integer<unsigned int>((lPixelByte >> (7 - lSourceBitIndex)) & std::byte{1})};
-            const auto lColorValue{
-                std::byte{static_cast<uint8_t>(((reinterpret_cast<const uint32_t*>(aColorPalette)[lColorIndex]) << lBitIndex))}
-            };
+            lImgByte |= lColorIndex ?
+                std::byte{1 << (7 - lImgBitIndex)} :
+                std::byte{0};
+            aRow[lImgByteIndex] = (aRow[lImgByteIndex] & ~lImgByte) | lImgByte;
 
-            aRow[lByteIndex] = (aRow[lByteIndex] & ~lColorByte) | lColorValue;
-
-            if (--lBitIndex == 0) {
-                lBitIndex = 7;
-                ++lSourceData;
+            if (lImgBitIndex-- == 0) {
+                lImgBitIndex = 7;
+                ++lImgByteIndex;
+                lImgByte = std::byte{0};
             }
         }
 
         lSourceBitIndex = 0;
-        ++lByteIndex;
     }
 }
 
