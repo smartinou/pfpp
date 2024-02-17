@@ -131,7 +131,7 @@ LS013B7::LS013B7(
         , .ui16Width{sWidth}
         , .ui16Height{sHeight}
         , .pfnPixelDraw{
-            [](void * const pvDisplayData, const int32_t i32X, const int32_t i32Y, const uint32_t ui32Value) noexcept
+            [](void* const pvDisplayData, const int32_t i32X, const int32_t i32Y, const uint32_t ui32Value) noexcept
             {
                 const auto lThis{static_cast<LS013B7*>(pvDisplayData)};
                 lThis->PixelDraw(i32X, i32Y, ui32Value);
@@ -139,7 +139,7 @@ LS013B7::LS013B7(
         }
         , .pfnPixelDrawMultiple{
             [](
-                void * const pvDisplayData,
+                void* const pvDisplayData,
                 const int32_t i32X, const int32_t i32Y,
                 const int32_t i32X0, const int32_t i32Count,
                 const int32_t i32BPP,
@@ -153,7 +153,7 @@ LS013B7::LS013B7(
         }
         , .pfnLineDrawH{
             [](
-                void * const pvDisplayData,
+                void* const pvDisplayData,
                 const int32_t i32X1,
                 const int32_t i32X2,
                 const int32_t i32Y,
@@ -166,7 +166,7 @@ LS013B7::LS013B7(
         }
         , .pfnLineDrawV{
             [](
-                void * const pvDisplayData,
+                void* const pvDisplayData,
                 const int32_t i32X,
                 const int32_t i32Y1,
                 const int32_t i32Y2,
@@ -178,21 +178,21 @@ LS013B7::LS013B7(
             }
         }
         , .pfnRectFill{
-            [](void * const pvDisplayData, const tRectangle * const psRect, uint32_t ui32Value) noexcept
+            [](void* const pvDisplayData, const tRectangle * const psRect, uint32_t ui32Value) noexcept
             {
                 const auto lThis{static_cast<LS013B7*>(pvDisplayData)};
                 lThis->RectFill(psRect, ui32Value);
             }
         }
         , .pfnColorTranslate{
-            [](void * const pvDisplayData, const uint32_t ui32Value) noexcept
+            [](void* const pvDisplayData, const uint32_t ui32Value) noexcept
             {
                 const auto lThis{static_cast<LS013B7*>(pvDisplayData)};
                 return lThis->ColorTranslate(ui32Value);
             }
         }
         , .pfnFlush{
-            [](void * const pvDisplayData) noexcept
+            [](void* const pvDisplayData) noexcept
             {
                 const auto lThis{static_cast<LS013B7*>(pvDisplayData)};
                 lThis->Flush();
@@ -233,7 +233,7 @@ void LS013B7::DisplayOff() const noexcept
 //                              LOCAL FUNCTIONS
 // *****************************************************************************
 
-LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2, bool aIsActive) noexcept
+LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2, const bool aIsActive) noexcept
 {
     Line lRow{std::byte{0}};
     auto lBitIndex{aX1 % sPixelsPerByte};
@@ -268,8 +268,10 @@ void LS013B7::PixelDraw(
 
 
 void LS013B7::PixelDrawMultiple(
-    const int32_t aColumnIx, const int32_t aRowIx,
-    const int32_t i32X0, const int32_t aPixelCount,
+    const int32_t aColumnIx,
+    const int32_t aRowIx,
+    const int32_t aX0,
+    const int32_t aPixelCount,
     const int32_t aBitsPerPixel,
     const uint8_t* const aSourceData,
     const uint8_t* const aColorPalette
@@ -282,12 +284,12 @@ void LS013B7::PixelDrawMultiple(
     switch (aBitsPerPixel & 0xFF)
     {
         case 1:
-            PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette);
+            PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, aX0, aPixelCount, aSourceData, aColorPalette);
             mIsLineDirty[aRowIx] = true;
             break;
         case 4: break;
         case 8:
-            PixelDrawMultiple8BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette);
+            PixelDrawMultiple8BPP(lRow, lByteIndex, lBitIndex, aX0, aPixelCount, aSourceData, aColorPalette);
             mIsLineDirty[aRowIx] = true;
             break;
         default: // Invalid number of pixels per byte.
