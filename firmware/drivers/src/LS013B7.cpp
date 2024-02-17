@@ -27,9 +27,12 @@
 #include "drivers/inc/LS013B7.h"
 
 // STL.
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <numeric>
+#include <ranges>
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
@@ -58,20 +61,20 @@ static constexpr auto BitSwap(const uint8_t aByte) noexcept
     );
 }
 
-static constexpr auto ToGateLine(const uint8_t aRowIndex) noexcept
-{
-    const auto lGateLineIndex{aRowIndex + 1};
-    return BitSwap(lGateLineIndex);
-}
-
-template<const size_t aSize>
+template<const int aSize>
 static constexpr auto FillGateLineLookup() noexcept
 {
-    std::array<std::byte, aSize> lGateLineLookup;
-    for (auto i = decltype(aSize){0}; i < aSize; ++i) {
-        lGateLineLookup[i] = ToGateLine(i);
-    }
-
+    const auto lGateLine{std::ranges::iota_view(1, aSize)};
+    std::array<std::byte, aSize> lGateLineLookup{};
+    std::transform(
+        lGateLine.begin(),
+        lGateLine.end(),
+        lGateLineLookup.begin(),
+        [](const auto aByte) noexcept
+        {
+            return BitSwap(aByte);
+        }
+    );
     return lGateLineLookup;
 }
 
@@ -85,10 +88,18 @@ static constexpr auto sSize{256};
 static constexpr auto sBitSwapLookup{
     []() noexcept
     {
-        std::array<std::byte, sSize> lBitSwapLookup;
-        for (auto i{0}; i < sSize; ++i) {
-            lBitSwapLookup[i] = ~BitSwap(i);
-        }
+        const auto lBitSwap{std::ranges::iota_view(0, 255)};
+        std::array<std::byte, sSize> lBitSwapLookup{};
+        std::transform(
+            lBitSwap.begin(),
+            lBitSwap.end(),
+            lBitSwapLookup.begin(),
+            [](const auto lByte) noexcept
+            {
+                return ~BitSwap(lByte);
+            }
+        );
+
         return lBitSwapLookup;
     } ()
 };
@@ -260,8 +271,8 @@ void LS013B7::PixelDrawMultiple(
     const int32_t aColumnIx, const int32_t aRowIx,
     const int32_t i32X0, const int32_t aPixelCount,
     const int32_t aBitsPerPixel,
-    const uint8_t * const aSourceData,
-    const uint8_t * const aColorPalette
+    const uint8_t* const aSourceData,
+    const uint8_t* const aColorPalette
 ) noexcept
 {
     auto& lRow{mImgBuf[aRowIx]};
@@ -270,11 +281,15 @@ void LS013B7::PixelDrawMultiple(
 
     switch (aBitsPerPixel & 0xFF)
     {
-        case 1: PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette);
+        case 1:
+            PixelDrawMultiple1BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette);
             mIsLineDirty[aRowIx] = true;
             break;
         case 4: break;
-        case 8: PixelDrawMultiple8BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette); break;
+        case 8:
+            PixelDrawMultiple8BPP(lRow, lByteIndex, lBitIndex, i32X0, aPixelCount, aSourceData, aColorPalette);
+            mIsLineDirty[aRowIx] = true;
+            break;
         default: // Invalid number of pixels per byte.
             break;
     }
@@ -287,8 +302,8 @@ void LS013B7::PixelDrawMultiple1BPP(
     const uint32_t aBitIndex,
     const uint32_t aSourceBitIndex,
     const int32_t aPixelCount,
-    const uint8_t *aSourceData,
-    [[maybe_unused]] const uint8_t *aColorPalette
+    const uint8_t* aSourceData,
+    const uint8_t* const aColorPalette
 ) noexcept
 {
     auto lImgByteIndex{aByteIndex};
@@ -300,19 +315,23 @@ void LS013B7::PixelDrawMultiple1BPP(
         const std::byte lSourcePixelByte{*lSourceData};
         ++lSourceData;
 
-        std::byte lImgByte{0};
+        std::byte lImgByte{aRow[lImgByteIndex]};
         for (; (lSourceBitIndex < 8) && lPixelCount; ++lSourceBitIndex, --lPixelCount) {
             const auto lColorIndex{std::to_integer<bool>((lSourcePixelByte >> (7 - lSourceBitIndex)) & std::byte{1})};
 
-            lImgByte |= lColorIndex ?
-                std::byte{1 << (7 - lImgBitIndex)} :
-                std::byte{0};
-            aRow[lImgByteIndex] = (aRow[lImgByteIndex] & ~lImgByte) | lImgByte;
+            lImgByte =
+                lColorIndex ?
+                    aColorPalette ?
+                        lImgByte | std::byte{static_cast<unsigned char>(1 << (7 - lImgBitIndex))} :
+                        lImgByte &~ std::byte{static_cast<unsigned char>(1 << (7 - lImgBitIndex))}
+                    :
+                    lImgByte;
+            aRow[lImgByteIndex] = lImgByte;
 
             if (lImgBitIndex-- == 0) {
                 lImgBitIndex = 7;
                 ++lImgByteIndex;
-                lImgByte = std::byte{0};
+                lImgByte = aRow[lImgByteIndex];
             }
         }
 
@@ -321,15 +340,14 @@ void LS013B7::PixelDrawMultiple1BPP(
 }
 
 
-
 void LS013B7::PixelDrawMultiple8BPP(
     Line& aRow,
     const uint32_t aByteIndex,
     const uint32_t aBitIndex,
     const uint32_t aSourceBitIndex,
     const int32_t aPixelCount,
-    const uint8_t *aSourceData,
-    const uint8_t *aColorPalette
+    const uint8_t* aSourceData,
+    const uint8_t* aColorPalette
 ) noexcept
 {
     auto lByteIndex{aByteIndex};
@@ -394,7 +412,7 @@ void LS013B7::LineDrawV(
 }
 
 
-void LS013B7::RectFill(const tRectangle * const aRectangle, const uint32_t aColor) noexcept
+void LS013B7::RectFill(const tRectangle* const aRectangle, const uint32_t aColor) noexcept
 {
     // Fill all the horizontal lines.
     // Send all lines to display.
@@ -489,6 +507,7 @@ void LS013B7::SetDataUpdateMode(const uint8_t aRow, std::span<const std::byte> a
 
     mSPIDeassert();
 }
+
 
 void LS013B7::SetDataUpdateModeMultiple(const uint8_t aStartRowIndex, const uint8_t aEndRowIndex) noexcept
 {
