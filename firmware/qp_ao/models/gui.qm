@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<model version="6.1.0" links="0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.state-machine.com/qm/qm.xsd">
+<model version="6.1.1" links="0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.state-machine.com/qm/qm.xsd">
  <documentation>About this example:
 -------------------
 Simple &quot;Blinky&quot; console application for workstations (Windows, Linux, macOS)
@@ -28,7 +28,7 @@ https://www.state-machine.com/qpcpp/exa.html</documentation>
  <framework name="qpcpp"/>
  <extern_package file="./gui.qmp"/>
  <directory name="../codegen">
-  <file name="GUI_AOs.h" codec="">
+  <file name="GUI_AOs.h">
    <text>#ifndef GUI__AOS_MGR_H_
 #define GUI__AOS_MGR_H_
 
@@ -40,19 +40,29 @@ https://www.state-machine.com/qpcpp/exa.html</documentation>
 
 // TivaWare.
 #include &lt;grlib/grlib.h&gt;
+#include &lt;grlib/widget.h&gt;
+#include &lt;grlib/pushbutton.h&gt;
 
 // STL.
 #include &lt;memory&gt;
+#include &lt;string_view&gt;
 
 $declare${GUI::AOs::Mgr}
 
 #endif // GUI__AOS_MGR_H_
 </text>
   </file>
-  <file name="GUI_AOs.cpp" codec="">
+  <file name="GUI_AOs.cpp">
    <text>// This project.
 #include &quot;qp_ao/codegen/GUI_AOs.h&quot;
 #include &quot;qp_ao/codegen/Signals.h&quot;
+
+#include &quot;../solution/tm4c123/CatImg.h&quot;
+
+#include &quot;grlib/container.h&quot;
+#include &quot;grlib/pushbutton.h&quot;
+
+#include &lt;array&gt;
 
 $define${GUI::AOs::Mgr}
 </text>
