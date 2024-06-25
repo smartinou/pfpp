@@ -68,14 +68,14 @@ struct SPISlaveCfg final
         NMW
     };
 
-    bool operator==(const SPISlaveCfg& aCfg) noexcept
+    bool operator==(const SPISlaveCfg& aCfg) const noexcept
     {
         return ((this->mProtocol == aCfg.mProtocol)
             && (this->mBitRate == aCfg.mBitRate)
             && (this->mDataWidth == aCfg.mDataWidth));
     }
 
-    bool operator!=(const SPISlaveCfg& aCfg) noexcept
+    bool operator!=(const SPISlaveCfg& aCfg) const noexcept
     {
         return !(*this == aCfg);
     }

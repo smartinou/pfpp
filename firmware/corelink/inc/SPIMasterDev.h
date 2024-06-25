@@ -28,7 +28,6 @@
 // CoreLink library.
 #include "corelink/inc/CoreLinkPeripheralDev.h"
 #include "corelink/inc/SPISlaveCfg.h"
-#include "corelink/inc/SSIGPIO.h"
 
 // Standard libraries.
 #include <cstddef>
@@ -73,9 +72,9 @@ public:
         std::optional<std::byte> aAddr = std::nullopt
     ) const noexcept;
 
-    [[maybe_unused]] auto PushPullByte(std::byte aByte) const noexcept
+    [[nodiscard]] auto PushPullByte(std::byte aByte) const noexcept
         -> std::byte;
-    [[maybe_unused]] auto PushPullByte(
+    [[nodiscard]] auto PushPullByte(
         const SPISlaveCfg& aSPICfg,
         std::byte aByte
     ) const noexcept -> std::byte;

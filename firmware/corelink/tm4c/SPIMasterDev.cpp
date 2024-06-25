@@ -27,8 +27,8 @@
 #include "corelink/inc/SPIMasterDev.h"
 
 // TI Library.
-#include <corelink/tm4c/rom.h>
-#include <corelink/tm4c/ssi.h>
+#include <driverlib/rom.h>
+#include <driverlib/ssi.h>
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
@@ -65,7 +65,11 @@ void SPIMasterDev::RdData(
 
     // -Send address if any.
     // -Push dummy data (0s) as many as requested to read.
-    if (aAddr) PushPullByte(aAddr.value());
+    if (aAddr)
+    {
+        [[maybe_unused]] const auto lByte{PushPullByte(aAddr.value())};
+    }
+
     for (auto& lByte : aData) {
         lByte = PushPullByte(std::byte{0});
     }
@@ -89,9 +93,13 @@ void SPIMasterDev::WrData(
     // -Push data as many as requested to write.
     // -Read dummy data to empty receive register.
     // -Wait for all bytes to transmit.
-    if (aAddr) PushPullByte(aAddr.value());
+    if (aAddr)
+    {
+        [[maybe_unused]] const auto lByte{PushPullByte(aAddr.value())};
+    }
+
     for (const auto aByte : aData) {
-        PushPullByte(aByte);
+        [[maybe_unused]] const auto lByte{PushPullByte(aByte)};
     }
 
     // Deassert the assigned CSn pin.
