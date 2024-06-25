@@ -2,7 +2,9 @@
     "files.associations": {
         "optional": "cpp",
         "array": "cpp",
-        "cstddef": "cpp"
+        "cstddef": "cpp",
+        "numbers": "cpp"
     },
-    "cmake.sourceDirectory": "/home/martin/repos/pfpp/solution/tm4c123/tmp/DevBoard/Debug"
+    "cmake.sourceDirectory": "/home/martin/repos/pfpp/solution/tm4c123/tmp/DevBoard/Debug",
+    "environment-manager.loggingVerbosity": "debug"
 }

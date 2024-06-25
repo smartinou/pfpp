@@ -52,8 +52,9 @@
             "serialNumber": "${command:device-manager.getSerialNumber}",
             "program": "${command:embedded-debug.getApplicationFile}",
             "cmsisPack": "Keil::TM4C_DFP@1.1.0",
-            "deviceName": "TM4C123GH6PM",
-            "connectMode": "auto"
+            "deviceName": "${command:device-manager.getDeviceName}",
+            "connectMode": "auto",
+            "debugFrom": "main"
         },
         {
             "name": "Python: Current File",
