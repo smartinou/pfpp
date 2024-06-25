@@ -31,7 +31,7 @@
 #include <span>
 
 // TivaWare Graphics Library.
-#include "grlib.h"
+#include <grlib/grlib.h>
 
 #include "drivers/inc/ILCD.h"
 #include "corelink/inc/Types.h"
@@ -72,6 +72,7 @@ public:
     void Init() noexcept override;
     void DisplayOn() const noexcept override;
     void DisplayOff() const noexcept override;
+    void Clear() noexcept override;
 
 private:
     static constexpr auto sWidth{128};

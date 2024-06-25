@@ -229,6 +229,12 @@ void LS013B7::DisplayOff() const noexcept
     mGPIODisplayOff();
 }
 
+
+void LS013B7::Clear() noexcept
+{
+    SetAllClrMode();
+}
+
 // *****************************************************************************
 //                              LOCAL FUNCTIONS
 // *****************************************************************************
@@ -239,14 +245,21 @@ LS013B7::Line LS013B7::CreateRow(const int32_t aX1, const int32_t aX2, const boo
     auto lBitIndex{aX1 % sPixelsPerByte};
 
     for (auto lX{aX1}; lX <= aX2; ++lX) {
-        auto lByteIndex {lX / sPixelsPerByte};
-        lRow[lByteIndex] |= std::byte{aIsActive} << lBitIndex;
+        auto lByteIndex{lX / sPixelsPerByte};
+        lRow[lByteIndex] |= (std::byte{0x1} << lBitIndex);
         ++lBitIndex;
         if (lBitIndex >= sPixelsPerByte) {
             lBitIndex = 0;
         }
     }
 
+    if (!aIsActive) {
+        std::transform(
+            lRow.cbegin(), lRow.cend(),
+            lRow.begin(),
+            std::bit_not<>{}
+        );
+    }
     return lRow;
 }
 
@@ -385,14 +398,23 @@ void LS013B7::LineDrawH(
     const uint32_t aColor
 ) noexcept
 {
-    const auto lNewRow{CreateRow(aX1, aX2, aColor)};
     auto& lRow{mImgBuf[aRowIx]};
-    std::transform(
-        lNewRow.cbegin(), lNewRow.cend(),
-        lRow.cbegin(), lRow.begin(),
-        std::bit_or<>{}
-    );
-
+    if (aColor) {
+        const auto lNewRow{CreateRow(aX1, aX2, true)};
+        std::transform(
+            lNewRow.cbegin(), lNewRow.cend(),
+            lRow.cbegin(), lRow.begin(),
+            std::bit_or<>{}
+        );
+    }
+    else {
+        const auto lNewRow{CreateRow(aX1, aX2, false)};
+        std::transform(
+            lNewRow.cbegin(), lNewRow.cend(),
+            lRow.cbegin(), lRow.begin(),
+            std::bit_and<>{}
+        );
+    }
     mIsLineDirty[aRowIx] = true;
 }
 
@@ -418,15 +440,29 @@ void LS013B7::RectFill(const tRectangle* const aRectangle, const uint32_t aColor
 {
     // Fill all the horizontal lines.
     // Send all lines to display.
-    const auto lNewRow{CreateRow(aRectangle->i16XMin, aRectangle->i16XMax, aColor)};
-    for (auto lRowIx{aRectangle->i16YMin}; lRowIx <= aRectangle->i16YMax; ++lRowIx) {
-        auto& lRow{mImgBuf[lRowIx]};
-        std::transform(
-            lNewRow.cbegin(), lNewRow.cend(),
-            lRow.cbegin(), lRow.begin(),
-            std::bit_or<>{}
-        );
-        mIsLineDirty[lRowIx] = true;
+    if (aColor) {
+        const auto lNewRow{CreateRow(aRectangle->i16XMin, aRectangle->i16XMax, true)};
+        for (auto lRowIx{aRectangle->i16YMin}; lRowIx <= aRectangle->i16YMax; ++lRowIx) {
+            auto& lRow{mImgBuf[lRowIx]};
+            std::transform(
+                lNewRow.cbegin(), lNewRow.cend(),
+                lRow.cbegin(), lRow.begin(),
+                std::bit_or<>{}
+            );
+            mIsLineDirty[lRowIx] = true;
+        }
+    }
+    else {
+        const auto lNewRow{CreateRow(aRectangle->i16XMin, aRectangle->i16XMax, false)};
+        for (auto lRowIx{aRectangle->i16YMin}; lRowIx <= aRectangle->i16YMax; ++lRowIx) {
+            auto& lRow{mImgBuf[lRowIx]};
+            std::transform(
+                lNewRow.cbegin(), lNewRow.cend(),
+                lRow.cbegin(), lRow.begin(),
+                std::bit_and<>{}
+            );
+            mIsLineDirty[lRowIx] = true;
+        }
     }
 }
 
