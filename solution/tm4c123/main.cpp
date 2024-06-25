@@ -44,6 +44,7 @@
 
 // CoreLink Library.
 #include "corelink/inc/SPIMasterDev.h"
+#include "corelink/inc/SSIGPIO.h"
 
 // QM codegen.
 #include "qp_ao/codegen/GUI_AOs.h"
@@ -58,10 +59,10 @@
 
 // This project.
 // Borrowed from TI TivaWare libraries.
-#include "corelink/tm4c/gpio.h"
-#include "corelink/tm4c/pin_map.h"
-#include "corelink/tm4c/rom.h"
-#include "corelink/tm4c/sysctl.h"
+#include "driverlib/gpio.h"
+#include "driverlib/pin_map.h"
+#include "driverlib/rom.h"
+#include "driverlib/sysctl.h"
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
@@ -346,6 +347,7 @@ static auto StartGUI() noexcept -> std::unique_ptr<GUI::AO::Mgr>
         )
     };
 
+    lLCD->Init();
     return std::make_unique<GUI::AO::Mgr>(lLCD, lLCD);
 }
 

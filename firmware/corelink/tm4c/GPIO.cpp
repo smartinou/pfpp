@@ -27,10 +27,10 @@
 #include "corelink/inc/GPIO.h"
 
 // TI Library.
-#include "corelink/tm4c/gpio.h"
-#include "corelink/tm4c/hw_memmap.h"
-#include "corelink/tm4c/rom.h"
-#include "corelink/tm4c/sysctl.h"
+//#include "driverlib/gpio.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/rom.h"
+#include "driverlib/sysctl.h"
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
@@ -59,23 +59,23 @@ namespace CoreLink
 void GPIO::EnableSysCtlPeripheral() const noexcept
 {
     switch (mBaseAddr) {
-    case GPIO_PORTA_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTA_AHB_BASE:
     case GPIO_PORTA_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA); break;
-    case GPIO_PORTB_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTB_AHB_BASE:
     case GPIO_PORTB_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB); break;
-    case GPIO_PORTC_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTC_AHB_BASE:
     case GPIO_PORTC_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC); break;
-    case GPIO_PORTD_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTD_AHB_BASE:
     case GPIO_PORTD_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD); break;
-    case GPIO_PORTE_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTE_AHB_BASE:
     case GPIO_PORTE_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE); break;
-    case GPIO_PORTF_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTF_AHB_BASE:
     case GPIO_PORTF_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF); break;
-    case GPIO_PORTG_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTG_AHB_BASE:
     case GPIO_PORTG_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG); break;
-    case GPIO_PORTH_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTH_AHB_BASE:
     case GPIO_PORTH_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOH); break;
-    case GPIO_PORTJ_AHB_BASE: [[fallthrough]];
+    case GPIO_PORTJ_AHB_BASE:
     case GPIO_PORTJ_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOJ); break;
     case GPIO_PORTK_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOK); break;
     case GPIO_PORTL_BASE: ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL); break;

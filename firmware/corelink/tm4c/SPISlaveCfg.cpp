@@ -27,8 +27,8 @@
 #include "corelink/inc/SPISlaveCfg.h"
 
 // TI Library.
-#include <corelink/tm4c/gpio.h>
-#include <corelink/tm4c/rom.h>
+#include <driverlib/gpio.h>
+#include <driverlib/rom.h>
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
