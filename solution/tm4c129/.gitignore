@@ -1,5 +1,6 @@
-!out/
-!tmp/
-!RTE/
-tm4c123.Debug*
-tm4c123.Release*
+out/
+tmp/
+RTE/
+tm4c129.Debug*
+tm4c129.Release*
+*.objdump
