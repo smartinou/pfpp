@@ -27,7 +27,6 @@
 #include "corelink/inc/GPIO.h"
 
 // TI Library.
-//#include "driverlib/gpio.h"
 #include "inc/hw_memmap.h"
 #include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
