@@ -1,2 +1,6 @@
 codegen/
 models/.*
+lm3s/
+tm4c/
+inc/
+src/
