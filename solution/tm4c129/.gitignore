@@ -1,6 +1,0 @@
-out/
-tmp/
-RTE/
-tm4c129.Debug*
-tm4c129.Release*
-*.objdump

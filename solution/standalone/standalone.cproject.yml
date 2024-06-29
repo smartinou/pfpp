@@ -1,5 +1,4 @@
 project:
-  #device: Texas Instruments::TM4C123GH6PM
   components:
     - component: ARM::CMSIS:CORE
     - component: Keil::Device:Startup

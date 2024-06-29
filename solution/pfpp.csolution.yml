@@ -35,29 +35,6 @@ solution:
 
   target-types:
     -
-      type: DevBoard
-      #board: ek-tm4c129exl
-      misc:
-        - C-CPP:
-          - -Wall -Wextra
-          - -Wpedantic
-          #- -Werror
-          #- -Wconversion
-          - -mfloat-abi=hard
-          - -mfpu=vfp
-          - -mthumb
-          - -ffunction-sections -fdata-sections
-        - CPP:
-          - -fno-rtti -fno-exceptions
-          - -Wno-psabi
-        - Link:
-          - -mfloat-abi=hard
-          - -mfpu=vfp
-          - -mthumb
-          - -specs=nosys.specs -specs=nano.specs
-          - -Wl,-Map,out.map,--cref,--gc-sections
-
-    -
       type: ek-tm4c123gxl
       device: Texas Instruments::TM4C123GH6PM
       misc:
@@ -66,6 +43,25 @@ solution:
           - -Wpedantic
           #- -Werror
           #- -Wconversion
+        - CPP:
+          - -fno-rtti -fno-exceptions
+          - -Wno-psabi
+        - Link:
+          - -specs=nosys.specs -specs=nano.specs
+          - -Wl,-Map,out.map,--cref,--gc-sections
+
+    -
+      type: ek-tm4c129exl
+      device: Texas Instruments::TM4C129ENCPDT
+      misc:
+        - C-CPP:
+          - -Wall -Wextra
+          - -Wpedantic
+          #- -Werror
+          #- -Wconversion
+        - CPP:
+          - -fno-rtti -fno-exceptions
+          - -Wno-psabi
         - Link:
           - -specs=nosys.specs -specs=nano.specs
           - -Wl,-Map,out.map,--cref,--gc-sections
@@ -75,6 +71,5 @@ solution:
     outdir: $SolutionDir()$/$Project$/out/$TargetType$/$BuildType$
 
   projects:
-    - project: ./tm4c129/tm4c129.cproject.yml
-    - project: ./tm4c123/tm4c123.cproject.yml
     - project: ./standalone/standalone.cproject.yml
+    - project: ./ethernet/ethernet.cproject.yml
