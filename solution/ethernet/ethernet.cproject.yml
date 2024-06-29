@@ -1,0 +1,59 @@
+project:
+  components:
+    - component: ARM::CMSIS:CORE
+    - component: Keil::Device:Startup
+
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Event Processor&qep
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Framework&qf
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Real-Time Kernel&qv
+    - component: QuantumLeaps::RTEF&QuantumLeaps QP/C++:Software tracing&qs
+      for-context:
+        - .Debug
+
+    - component: lwIP::Network&lwIP:API
+    - component: lwIP::Network&lwIP:CORE&IPv4
+    - component: lwIP::Network&lwIP:Interface:Ethernet
+    #- component: lwIP::Network&lwIP:Driver:Ethernet&CMSIS Driver
+
+  add-path:
+    - "../../firmware"
+
+  define:
+    - TARGET_IS_TM4C129_RA0
+    - TM4C129ENCPDT
+    - QP_API_VERSION : 9999
+
+  linker:
+    - script: ./tm4c129.ld
+
+  groups:
+    - group: Main application
+      files:
+        - file: main.cpp
+        - file: startup_TM4C129ENCPDT.c
+
+    - group: QM codegen
+      files:
+        - file: ../../firmware/qp_ao/codegen/PFPP_AOs.cpp
+        - file: ../../firmware/qp_ao/codegen/PFPP_HSMs.cpp
+        - file: ../../firmware/qp_ao/codegen/RTCC_AOs.cpp
+
+    - group: Common firmware
+      files:
+        - file: ../../firmware/utils/shell/Shell.cpp
+        - file: ../../firmware/drivers/src/DS3234.cpp
+        - file: ../../firmware/drivers/src/LS013B7.cpp
+        - file: ../../firmware/drivers/tm4c/TB6612.cpp
+        - file: ../../firmware/corelink/tm4c/GPIO.cpp
+        - file: ../../firmware/corelink/tm4c/SPISlaveCfg.cpp
+        - file: ../../firmware/corelink/tm4c/SSIGPIO.cpp
+        - file: ../../firmware/corelink/tm4c/SPIMasterDev.cpp
+
+    - group: Network
+      files:
+        - file: ../firmware/qp_ao/src/LwIPDrv.cpp
+        #- file: ../firmware/qp_ao/tm4c/RxDescriptor.cpp
+        #- file: ../firmware/qp_ao/tm4c/TxDescriptorRing.cpp
+        #- file: ../firmware/qp_ao/tm4c/EthDrv.cpp
+        - file: ../firmware/utils/net/IPAddress.cpp
+        - file: ../firmware/utils/net/EthernetAddress.cpp
