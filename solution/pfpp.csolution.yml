@@ -44,7 +44,7 @@ solution:
           #- -Werror
           #- -Wconversion
           - -mfloat-abi=hard
-          - -mfpu=auto
+          - -mfpu=vfp
           - -mthumb
           - -ffunction-sections -fdata-sections
         - CPP:
@@ -52,8 +52,21 @@ solution:
           - -Wno-psabi
         - Link:
           - -mfloat-abi=hard
-          - -mfpu=auto
+          - -mfpu=vfp
           - -mthumb
+          - -specs=nosys.specs -specs=nano.specs
+          - -Wl,-Map,out.map,--cref,--gc-sections
+
+    -
+      type: ek-tm4c123gxl
+      device: Texas Instruments::TM4C123GH6PM
+      misc:
+        - C-CPP:
+          - -Wall -Wextra
+          - -Wpedantic
+          #- -Werror
+          #- -Wconversion
+        - Link:
           - -specs=nosys.specs -specs=nano.specs
           - -Wl,-Map,out.map,--cref,--gc-sections
 
@@ -64,3 +77,4 @@ solution:
   projects:
     - project: ./tm4c129/tm4c129.cproject.yml
     - project: ./tm4c123/tm4c123.cproject.yml
+    - project: ./standalone/standalone.cproject.yml
