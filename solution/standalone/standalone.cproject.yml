@@ -10,7 +10,10 @@ project:
       for-context:
         - .Debug
     #- component: Texas-Instruments::Utility&Peripheral drivers:Peripheral Driver Library
+    - component: Texas-Instruments::Utility&Peripheral drivers:GPIO Driver Library
+    - component: Texas-Instruments::Utility&Peripheral drivers:Silicon Revision:TM4C123x Silicon&Revision 6
     - component: Texas-Instruments::Graphics&Graphics:Core Library
+      warnings: "off"
       #define:
         #- GRLIB_REMOVE_WIDE_FONT_SUPPORT
 
@@ -18,8 +21,6 @@ project:
     - "../../firmware"
 
   define:
-    - TARGET_IS_TM4C123_RB1
-    - PART_TM4C123GH6PM
     - QP_API_VERSION : 9999
 
   linker:
