@@ -343,6 +343,13 @@ static const QP::QEvt sDrawEvent{GUI_DRAW_SIG};
 POST(&amp;sDrawEvent, this);
 </code>
    </operation>
+   <operation name="ClrScreen" type="void" visibility="0x02" properties="0x00">
+    <documentation>Clear the entire screen.
+Uses the function from ILCD interface rather than drawing a screen-size rectangle in the background color.</documentation>
+    <code>// Use the ILCD interface do to so.
+// Could also draw a rectangle in the size of the screen, in background color.
+mLCD-&gt;Clear();</code>
+   </operation>
    <statechart properties="0x02">
     <initial target="../1">
      <action>static_cast&lt;void&gt;(e);</action>
@@ -590,7 +597,7 @@ GrFlush(&amp;mContext);</action>
       <documentation>Splash screen.</documentation>
       <entry brief="DisplaySplash()">// Draw the menu here?
 DrawMainMenu();</entry>
-      <exit brief="ClrScreen()"/>
+      <exit brief="ClrScreen()">ClrScreen();</exit>
       <initial target="../3">
        <initial_glyph conn="16,44,5,0,6,4">
         <action box="0,-2,10,2"/>
