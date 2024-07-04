@@ -29,6 +29,7 @@
 // TI Library.
 #include <driverlib/gpio.h>
 #include <driverlib/rom.h>
+#include <driverlib/rom_map.h>
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
@@ -62,8 +63,8 @@ void CSnGPIO::InitCSnGPIO() const noexcept
     // otherwise CPU will rise a HW fault.
     // Set for standard push-pull operation.
     //mCSn.EnableSysCtlPeripheral();
-    ROM_GPIOPinTypeGPIOOutput(mBaseAddr, mPin);
-    ROM_GPIOPadConfigSet(
+    MAP_GPIOPinTypeGPIOOutput(mBaseAddr, mPin);
+    MAP_GPIOPadConfigSet(
         mBaseAddr,
         mPin,
         GPIO_STRENGTH_2MA,
@@ -76,13 +77,13 @@ void CSnGPIO::InitCSnGPIO() const noexcept
 
 void CSnGPIO::AssertCSn() const noexcept
 {
-    ROM_GPIOPinWrite(mBaseAddr, mPin, (mCSPolarity == tCSPolarity::ActiveLow) ? 0 : mPin);
+    MAP_GPIOPinWrite(mBaseAddr, mPin, (mCSPolarity == tCSPolarity::ActiveLow) ? 0 : mPin);
 }
 
 
 void CSnGPIO::DeassertCSn() const noexcept
 {
-    ROM_GPIOPinWrite(mBaseAddr, mPin, (mCSPolarity == tCSPolarity::ActiveLow) ? mPin : 0);
+    MAP_GPIOPinWrite(mBaseAddr, mPin, (mCSPolarity == tCSPolarity::ActiveLow) ? mPin : 0);
 }
 
 

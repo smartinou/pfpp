@@ -29,6 +29,7 @@
 // TI Library.
 #include <driverlib/gpio.h>
 #include <driverlib/rom.h>
+#include <driverlib/rom_map.h>
 
 // *****************************************************************************
 //                      DEFINED CONSTANTS AND MACROS
@@ -60,16 +61,16 @@ void SSIGPIO::SetPins() const noexcept
     mRxPin.EnableSysCtlPeripheral();
     mTxPin.EnableSysCtlPeripheral();
 
-    ROM_GPIOPinConfigure(mClkPinCfg);
-    ROM_GPIOPinConfigure(mDat0PinCfg);
-    ROM_GPIOPinConfigure(mDat1PinCfg);
+    MAP_GPIOPinConfigure(mClkPinCfg);
+    MAP_GPIOPinConfigure(mDat0PinCfg);
+    MAP_GPIOPinConfigure(mDat1PinCfg);
 
-    ROM_GPIOPinTypeSSI(mClkPin.mBaseAddr, mClkPin.mPin);
-    ROM_GPIOPinTypeSSI(mRxPin.mBaseAddr, mRxPin.mPin);
-    ROM_GPIOPinTypeSSI(mTxPin.mBaseAddr, mTxPin.mPin);
+    MAP_GPIOPinTypeSSI(mClkPin.mBaseAddr, mClkPin.mPin);
+    MAP_GPIOPinTypeSSI(mRxPin.mBaseAddr, mRxPin.mPin);
+    MAP_GPIOPinTypeSSI(mTxPin.mBaseAddr, mTxPin.mPin);
 
     // Set a weak pull-up on MISO pin for SD Card's proper operation.
-    ROM_GPIOPadConfigSet(
+    MAP_GPIOPadConfigSet(
         mRxPin.mBaseAddr,
         mRxPin.mPin,
         GPIO_STRENGTH_2MA,
@@ -77,14 +78,14 @@ void SSIGPIO::SetPins() const noexcept
     );
 
     // Clk and Tx set for standard push-pull operation by GPIOPinTypeSSI.
-    ROM_GPIOPadConfigSet(
+    MAP_GPIOPadConfigSet(
         mClkPin.mBaseAddr,
         mClkPin.mPin,
         GPIO_STRENGTH_2MA,
         GPIO_PIN_TYPE_STD
     );
 
-    ROM_GPIOPadConfigSet(
+    MAP_GPIOPadConfigSet(
         mTxPin.mBaseAddr,
         mTxPin.mPin,
         GPIO_STRENGTH_2MA,

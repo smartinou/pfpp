@@ -28,6 +28,7 @@
 
 // TI Library.
 #include <driverlib/rom.h>
+#include <driverlib/rom_map.h>
 #include <driverlib/ssi.h>
 
 // *****************************************************************************
@@ -110,8 +111,8 @@ void SPIMasterDev::WrData(
 auto SPIMasterDev::PushPullByte(const std::byte aByte) const noexcept -> std::byte
 {
     uint32_t lRxData{0UL};
-    ROM_SSIDataPut(mBaseAddr, std::to_integer<uint32_t>(aByte));
-    ROM_SSIDataGet(mBaseAddr, &lRxData);
+    MAP_SSIDataPut(mBaseAddr, std::to_integer<uint32_t>(aByte));
+    MAP_SSIDataGet(mBaseAddr, &lRxData);
 
     return static_cast<std::byte>(lRxData);
 }
@@ -134,10 +135,10 @@ void SPIMasterDev::SetCfg(const SPISlaveCfg& aSPICfg) const noexcept
 {
     // Test the specified config. Matches the last one used?
     if (aSPICfg != mCachedSPISlaveCfg) {
-        ROM_SSIDisable(mBaseAddr);
+        MAP_SSIDisable(mBaseAddr);
 
         const auto lNativeProtocol{static_cast<uint32_t>(aSPICfg.mProtocol)};
-        ROM_SSIConfigSetExpClk(
+        MAP_SSIConfigSetExpClk(
             mBaseAddr,
             mClkRate,
             lNativeProtocol,
@@ -146,7 +147,7 @@ void SPIMasterDev::SetCfg(const SPISlaveCfg& aSPICfg) const noexcept
             aSPICfg.mDataWidth
         );
 
-        ROM_SSIEnable(mBaseAddr);
+        MAP_SSIEnable(mBaseAddr);
         mCachedSPISlaveCfg = aSPICfg;
     }
 }
