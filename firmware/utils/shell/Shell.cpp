@@ -28,6 +28,7 @@
 
 // Standard libraries.
 #include <array>
+#include <cstdint>
 #include <cstring>
 #include <malloc.h>
 
@@ -89,59 +90,15 @@ void Shell::AddShellCmd(
 }
 
 
-void Shell::Printf(const char* const aFormat, ...) noexcept
+//[MG] PAS VRAIMENT UNE FONCTION DE SHELL. AU MIEUX STATIC.
+void Shell::Printf(const char* const /*aFormat*/, ...) noexcept
 {
-    std::array<char, sTerminatedLineSize> lLine {};
 
-    va_list lArgs;
-    va_start(lArgs, aFormat);
-    std::vsnprintf(lLine.data(), lLine.size(), aFormat, lArgs);
-    va_end(lArgs);
-
-    printf(lLine.data());
 }
 
 // *****************************************************************************
 //                              LOCAL FUNCTIONS
 // *****************************************************************************
-
-void Shell::CmdTaskProc() noexcept
-{
-    mIsRunning = true;
-    static constexpr auto sLineLen {80};
-    char lCmdBuf[sLineLen + 1];
-
-    Printf("Pleora Technologies Command Shell.\n");
-    while (1) {
-        Printf("PT>\n");
-        scanf(" %80[^\n]", lCmdBuf);
-        CmdLineDispatch(lCmdBuf);
-    }
-
-    // Should never get here.
-    //vTaskDelete(nullptr);
-}
-
-#if 0
-void Shell::PrintTaskProc() noexcept
-{
-    static std::array<char, sTerminatedLineSize> sLine {};
-    while (1) {
-        if (pdTRUE ==
-            xQueueReceive(
-                mCmdQueue.GetHandle(),
-                static_cast<void*>(sLine.data()),
-                portMAX_DELAY)
-            )
-        {
-            print(sLine.data());
-        }
-    }
-
-    // Should never get here.
-    vTaskDelete(nullptr);
-}
-#endif
 
 //
 // Dispatches the command to the appropriate command handler.

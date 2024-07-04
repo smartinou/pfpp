@@ -67,7 +67,7 @@ public:
         , mParam{aParam}
     {/*Ctor body*/}
 
-    [[nodiscard]] auto GetName() const noexcept -> std::string_view {return mName;}
+    [[nodiscard]] constexpr auto GetName() const noexcept -> std::string_view {return mName;}
 
     void Execute(
         Shell* const aShell,

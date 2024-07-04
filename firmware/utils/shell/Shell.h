@@ -50,28 +50,22 @@ class Shell final
 {
 public:
     [[nodiscard]] explicit Shell() noexcept;
-    virtual ~Shell() = default;
 
-    virtual void Printf(const char* aFormat, ...) noexcept;
+    void Printf(const char* aFormat, ...) noexcept;
     void AddShellCmd(Utils::ShellCmd aShellCmd) noexcept;
     void AddShellCmd(
         const char* aName,
         Utils::ShellCmd::tFunction aFunction,
         void* aParam = nullptr
     ) noexcept;
-    [[nodiscard]] bool IsRunning() const noexcept {return mIsRunning;}
+    void CmdLineDispatch(const char* aCmdLine) noexcept;
 
 private:
-    void CmdTaskProc() noexcept;
-    //void PrintTaskProc() noexcept;
-    void CmdLineDispatch(const char* aCmdLine) noexcept;
 
     void AddHelpCmd() noexcept;
     void AddMemDispCmd() noexcept;
     void AddMemModCmd() noexcept;
     void AddHeapCmd() noexcept;
-
-    bool mIsRunning {false};
 
     // Commands table.
     std::map<std::string_view, ShellCmd> mCmds;
